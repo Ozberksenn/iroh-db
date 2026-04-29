@@ -1,0 +1,6 @@
+@iroh_be_HostAddress = http://localhost:5034
+
+GET {{iroh_be_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
