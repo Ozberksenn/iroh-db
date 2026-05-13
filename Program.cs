@@ -1,30 +1,30 @@
+using Microsoft.EntityFrameworkCore;
+using Iroh.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
+builder.Services.AddScoped<TableService>();
+builder.Services.AddScoped<CompanyService>();
+
+
+// Sadece bunları tut
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+// Doğru olan (PostgreSQL için)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        // Swagger arayüzünü ana dizinde (localhost:5000) görmek istersen:
-        // options.RoutePrefix = string.Empty; 
-    });
+    app.UseSwaggerUI();
 }
+
 app.UseHttpsRedirection();
 app.MapControllers();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
 
 app.Run();
