@@ -1,4 +1,6 @@
 
+using Iroh.Models.Entities;
+
 namespace Iroh.Services
 {
     public class CompanyService
@@ -8,9 +10,19 @@ namespace Iroh.Services
         {
             _context = context;
         }
-        public List<Models.Entities.Company> GetAll()
+        public List<Company> GetAll()
         {
             return _context.Company.ToList();
+        }
+        public Company? GetCompanyById(int id)
+        {
+            return _context.Company.FirstOrDefault(c => c.id == id);
+        }
+        public Company Update(Company company)
+        {
+            _context.Company.Update(company);
+            _context.SaveChanges();
+            return company;
         }
     }
 }
