@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/ozberksen/Desktop/developer/iroh-be/iroh-be.csproj": {}
+    "/Users/ozberksen/development/iroh-be/iroh-be.csproj": {}
   },
   "projects": {
-    "/Users/ozberksen/Desktop/developer/iroh-be/iroh-be.csproj": {
+    "/Users/ozberksen/development/iroh-be/iroh-be.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/ozberksen/Desktop/developer/iroh-be/iroh-be.csproj",
+        "projectUniqueName": "/Users/ozberksen/development/iroh-be/iroh-be.csproj",
         "projectName": "iroh-be",
-        "projectPath": "/Users/ozberksen/Desktop/developer/iroh-be/iroh-be.csproj",
+        "projectPath": "/Users/ozberksen/development/iroh-be/iroh-be.csproj",
         "packagesPath": "/Users/ozberksen/.nuget/packages/",
-        "outputPath": "/Users/ozberksen/Desktop/developer/iroh-be/obj/",
+        "outputPath": "/Users/ozberksen/development/iroh-be/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/ozberksen/.nuget/NuGet/NuGet.Config"

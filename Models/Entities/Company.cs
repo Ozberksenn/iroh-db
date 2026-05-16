@@ -5,7 +5,6 @@ namespace Iroh.Models.Entities
     [Table("company", Schema = "public")]
     public class Company : BaseEntity
     {
-
         public required string name { get; set; }
 
         [Column("firsthourprice")]

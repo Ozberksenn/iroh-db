@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<TableService>();
 builder.Services.AddScoped<CompanyService>();
+builder.Services.AddScoped<CustomerService>();
 
 
 // Sadece bunları tut

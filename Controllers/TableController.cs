@@ -53,5 +53,19 @@ namespace Iroh.Controllers
             var response = new CustomResponse<Table>(true, "Masa başarıyla güncellendi", updatedTable);
             return Ok(response);
         }
+
+        // [HttpPut("{id}")]
+        // public IActionResult Delete(int id)
+        // {
+        //     var table = _tableService.GetById(id);
+        //     if (table == null)
+        //     {
+        //         var errorResponse = new CustomResponse<string>(false, "Masa bulunamadı", null);
+        //         return NotFound(errorResponse);
+        //     }
+        //     _tableService.Update(table);
+        //     var response = new CustomResponse<string>(true, "Masa başarıyla silindi", null);
+        //     return Ok(response);
+        // }
     }
 }

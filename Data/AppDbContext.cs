@@ -10,5 +10,5 @@ public class AppDbContext : DbContext
     // Define your DbSet properties here
     public DbSet<Table> Table { get; set; }
     public DbSet<Company> Company { get; set; }
-
+    public DbSet<Customer> Customer { get; set; }
 }
