@@ -8,6 +8,7 @@ builder.Services.AddScoped<TableService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<BookingLogService>();
 
 
 // Sadece bunları tut
