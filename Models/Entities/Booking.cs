@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Iroh.Models.Enums;
 
 namespace Iroh.Models.Entities
 {
@@ -6,10 +7,16 @@ namespace Iroh.Models.Entities
     public class Booking : BaseEntity
     {
         [Column("tableid")]
-        public int? tableId { get; set; }
+        public int tableId { get; set; }
+
+        [ForeignKey("tableId")]
+        public Table? table { get; set; }
 
         [Column("customerid")]
         public int? customerId { get; set; }
+
+        [ForeignKey("customerId")]
+        public Customer? customer { get; set; }
 
         [Column("starttime")]
         public DateTime? startTime { get; set; }
@@ -17,7 +24,7 @@ namespace Iroh.Models.Entities
         [Column("endtime")]
         public DateTime? endTime { get; set; }
 
-        public required string status { get; set; }
+        public BookingStatus status { get; set; }
 
         public int? price { get; set; }
 
@@ -31,6 +38,5 @@ namespace Iroh.Models.Entities
 
         [Column("child_id")]
         public int? childId { get; set; }
-
     }
 }

@@ -1,5 +1,5 @@
-
 using Iroh.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
@@ -10,9 +10,14 @@ namespace Iroh.Services
         {
             _context = context;
         }
+        
         public List<Booking> GetAll()
         {
-            return _context.Booking.ToList();
+            // .Include(b => b.table) ekleyerek masanın bilgilerini (adını vb.) de getiriyoruz.
+            return _context.Booking
+                .Include(b => b.table)
+                .Include(b => b.customer)
+                .ToList();
         }
     }
 }
