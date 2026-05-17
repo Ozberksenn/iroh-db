@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("iroh-be")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1637e9145718e805860648036c102dcf66564b3d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a68c787062f6790908aec42050eda1ef6190eacb")]
 [assembly: System.Reflection.AssemblyProductAttribute("iroh-be")]
 [assembly: System.Reflection.AssemblyTitleAttribute("iroh-be")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
