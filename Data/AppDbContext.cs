@@ -12,6 +12,12 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customer { get; set; }
     public DbSet<Booking> Booking { get; set; }
     public DbSet<BookingLog> BookingLog { get; set; }
+    public DbSet<User> User { get; set; }
+    public DbSet<Purchase> Purchase { get; set; }
+    public DbSet<PurchaseBooking> purchaseBookings { get; set; }
+    public DbSet<PurchasePayment> purchasePayments { get; set; }
+
+    public DbSet<Child> child { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
