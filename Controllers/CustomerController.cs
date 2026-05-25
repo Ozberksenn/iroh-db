@@ -63,5 +63,27 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
+        [HttpDelete("{id}")]
+        public IActionResult Delete(int id)
+        {
+            var customer = _customerService.GetCustomerById(id);
+            if (customer == null)
+            {
+                var errorResponse = new CustomResponse<Customer>(false, "Müşteri bulunamadı", null);
+                return NotFound(errorResponse);
+            }
+
+            try
+            {
+                var deletedCustomer = _customerService.Delete(customer);
+                var response = new CustomResponse<Customer>(true, "Müşteri başarıyla silindi", deletedCustomer);
+                return Ok(response);
+            }
+            catch (InvalidOperationException ex)
+            {
+                var errorResponse = new CustomResponse<Customer>(false, ex.Message, null);
+                return BadRequest(errorResponse);
+            }
+        }
     }
 }
