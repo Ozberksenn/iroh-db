@@ -1,9 +1,11 @@
-using Microsoft.EntityFrameworkCore;
-using Iroh.Services;
 using Iroh.Models.Entities;
+using Iroh.Services;
+using Microsoft.EntityFrameworkCore;
+
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 builder.Services.AddScoped<TableService>();
 builder.Services.AddScoped<CompanyService>();

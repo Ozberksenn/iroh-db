@@ -9,18 +9,28 @@ namespace Iroh.Services
         {
             _context = context;
         }
+
+        public Customer? GetCustomerById(int id)
+        {
+            return _context.Customer.FirstOrDefault(c => c.id == id);
+        }
+
         public List<Customer> GetAll()
         {
             return _context.Customer.ToList();
         }
-        // public Table? GetById(int id)
-        // {
-        //     // _context.Table -> Senin DbSet'in (tablon)
-        //     // .FirstOrDefault -> Şarta uyan İLK kaydı getir, bulamazsan 'null' dön.
-        //     // t => t.id == id -> Lambda ifadesi (Sorgu şartı)
-        //     return _context.Table.FirstOrDefault(t => t.id == id);
-        // }
+        public Customer Create(Customer customer)
+        {
+            _context.Customer.Add(customer);
+            _context.SaveChanges();
+            return customer;
+        }
 
-
+        public Customer Update(Customer customer)
+        {
+            _context.Customer.Update(customer);
+            _context.SaveChanges();
+            return customer;
+        }
     }
 }
