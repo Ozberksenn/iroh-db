@@ -10,7 +10,7 @@ namespace Iroh.Services
         {
             _context = context;
         }
-        
+
         public List<Booking> GetAll()
         {
             // .Include(b => b.table) ekleyerek masanın bilgilerini (adını vb.) de getiriyoruz.
@@ -18,6 +18,13 @@ namespace Iroh.Services
                 .Include(b => b.table)
                 .Include(b => b.customer)
                 .ToList();
+        }
+
+        public Booking Create(Booking booking)
+        {
+            _context.Booking.Add(booking);
+            _context.SaveChanges();
+            return booking;
         }
     }
 }

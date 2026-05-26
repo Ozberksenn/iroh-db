@@ -7,7 +7,7 @@ namespace Iroh.Models.Entities
     public class Booking : BaseEntity
     {
         [Column("tableid")]
-        public int tableId { get; set; }
+        public int? tableId { get; set; }
 
         [ForeignKey("tableId")]
         public Table? table { get; set; }
