@@ -17,7 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<PurchaseBooking> purchaseBookings { get; set; }
     public DbSet<PurchasePayment> purchasePayments { get; set; }
 
-    public DbSet<Child> child { get; set; }
+    public DbSet<Child> Children { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

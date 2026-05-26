@@ -27,6 +27,14 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
+        [HttpGet("Active")]
+        public IActionResult GetActive()
+        {
+            var bookings = _bookingService.GetActiveBookings();
+            var response = new CustomResponse<List<Booking>>(true, "Başarılı", bookings);
+            return Ok(response);
+        }
+
         [HttpPost]
         public IActionResult Create(BookingCreateDto bookingCreateDto)
         {

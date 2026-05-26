@@ -42,7 +42,7 @@ namespace Iroh.Services
 
             // Aktif veya Beklemede olan bir oturum (booking) var mı kontrol et
             var hasActiveBooking = _context.Booking
-                .Any(b => _context.child.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
+                .Any(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
                           && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
 
             if (hasActiveBooking)
@@ -51,7 +51,7 @@ namespace Iroh.Services
             }
 
             // Çocukları soft-delete yap
-            var children = _context.child.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToList();
+            var children = _context.Children.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToList();
             foreach (var child in children)
             {
                 child.isDeleted = true;

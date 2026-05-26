@@ -38,5 +38,10 @@ namespace Iroh.Models.Entities
 
         [Column("child_id")]
         public int? childId { get; set; }
+
+        [ForeignKey("childId")]
+        public Child? child { get; set; }
+
+        public ICollection<BookingLog> logs { get; set; } = new List<BookingLog>();
     }
 }

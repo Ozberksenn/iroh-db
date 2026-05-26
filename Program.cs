@@ -16,7 +16,11 @@ builder.Services.AddScoped<PurchasePaymentService>();
 builder.Services.AddScoped<PurchaseService>();
 
 // Sadece bunları tut
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 // Doğru olan (PostgreSQL için)

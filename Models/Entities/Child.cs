@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Iroh.Models.Entities
 {
@@ -11,6 +12,7 @@ namespace Iroh.Models.Entities
         public int parentId { get; set; }
 
         [ForeignKey("parentId")]
+        [JsonIgnore]
         public Customer? parent { get; set; }
 
         [Column("birth_date")]

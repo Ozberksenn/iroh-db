@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace Iroh.Models.Entities
 {
@@ -9,6 +10,7 @@ namespace Iroh.Models.Entities
         public int bookingId { get; set; }
 
         [ForeignKey("bookingId")]
+        [JsonIgnore]
         public Booking? booking { get; set; }
 
         [Column("time")]
