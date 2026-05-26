@@ -37,9 +37,9 @@ namespace Iroh.Services
 
         public Purchase Update(Purchase purchase, int newHours, int newPrice, int newCustomerId, DateTime? newStartDate, DateTime? newEndDate)
         {
-            // 1. Mevcut saati ve kullanım durumlarını kontrol et (EF Core zaten nesneyi takip ediyor olabilir ama procedure mantığını koruyoruz)
+            // 1. Mevcut saati ve kullanım durumlarını kontrol et
             // Not: purchase nesnesi zaten veritabanından çekilmiş eski değerleri taşıyor olmalı.
-            
+
             bool hasUsage = _context.purchaseBookings.Any(pb => pb.purchaseId == purchase.id);
             bool hasPayments = _context.purchasePayments.Any(pp => pp.purchaseId == purchase.id);
 
