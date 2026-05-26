@@ -44,6 +44,15 @@ namespace Iroh.Controllers
             var response = new CustomResponse<Booking>(true, "Başarılı", createdBooking);
             return Ok(response);
         }
+
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, BookingUpdateDto bookingUpdateDto)
+        {
+            var updateBooking = _bookingService.Update(id, bookingUpdateDto);
+            return updateBooking != null
+                ? Ok(new CustomResponse<Booking>(true, "Başarılı", updateBooking))
+                : NotFound(new CustomResponse<Booking>(false, "Kayıt bulunamadı", null));
+        }
     }
 
 }

@@ -1,3 +1,4 @@
+using Iroh.Models.DTOs.Booking;
 using Iroh.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,11 +21,39 @@ namespace Iroh.Services
                 .ToList();
         }
 
+        public Booking GetById(int id)
+        {
+            return _context.Booking
+                // .Include(b => b.table)
+                // .Include(b => b.customer)
+                .FirstOrDefault(b => b.id == id);
+        }
+
         public Booking Create(Booking booking)
         {
             _context.Booking.Add(booking);
             _context.SaveChanges();
             return booking;
+        }
+
+        public Booking Update(int id, BookingUpdateDto updatedBooking)
+        {
+            var existingBooking = _context.Booking.Find(id);
+            if (existingBooking == null)
+            {
+                return null;
+            }
+
+            existingBooking.tableId = updatedBooking.tableId ?? existingBooking.tableId;
+            existingBooking.startTime = updatedBooking.startTime ?? existingBooking.startTime;
+            existingBooking.endTime = updatedBooking.endTime ?? existingBooking.endTime;
+            existingBooking.status = updatedBooking.status;
+            existingBooking.price = updatedBooking.price ?? existingBooking.price;
+            existingBooking.childId = updatedBooking.childId ?? existingBooking.childId;
+            existingBooking.note = updatedBooking.note ?? existingBooking.note;
+
+            _context.SaveChanges();
+            return existingBooking;
         }
     }
 }
