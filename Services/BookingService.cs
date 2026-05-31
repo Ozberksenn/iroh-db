@@ -24,8 +24,6 @@ namespace Iroh.Services
         public Booking? GetById(int id)
         {
             return _context.Booking
-                // .Include(b => b.table)
-                // .Include(b => b.customer)
                 .FirstOrDefault(b => b.id == id);
         }
 

@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
+using Iroh.Models.Enums;
+
 namespace Iroh.Models.Entities
 {
     [Table("bookinglogs", Schema = "public")]
@@ -17,7 +19,7 @@ namespace Iroh.Models.Entities
         public DateTime time { get; set; } = DateTime.UtcNow;
 
         [Column("type")]
-        public required string type { get; set; }
+        public BookingLogType type { get; set; }
 
         [Column("userid")]
         public int? userId { get; set; }

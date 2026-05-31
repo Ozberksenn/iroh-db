@@ -27,5 +27,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Booking>()
             .Property(b => b.status)
             .HasConversion<string>();
+
+        // BookingLogType enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
+        modelBuilder.Entity<BookingLog>()
+            .Property(bl => bl.type)
+            .HasConversion<string>();
     }
 }

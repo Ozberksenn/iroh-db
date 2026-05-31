@@ -1,5 +1,6 @@
 
 using Iroh.Models.CustomResponses;
+using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
 using Iroh.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,22 @@ namespace Iroh.Controllers
             var response = new CustomResponse<List<BookingLog>>(true, "Başırlı", bookingLogs);
             return Ok(response);
         }
+
+        [HttpPost]
+        public IActionResult Create(BookingLogInsertDto dto)
+        {
+            var bookingLog = new BookingLog
+            {
+                bookingId = dto.bookingId,
+                time = dto.time,
+                type = dto.type,
+                userId = dto.userId
+            };
+            var result = _bookingLogService.Create(bookingLog);
+            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Oluşturuldu.", result);
+            return Ok(response);
+        }
+
     }
 
 }
