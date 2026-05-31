@@ -42,6 +42,26 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
+        [HttpPut("{id}")]
+        public IActionResult Update(int id, [FromBody] BookingLogUpdateDto dto)
+        {
+            var bookingLog = _bookingLogService.GetById(id);
+            if (bookingLog == null)
+            {
+                var errorResponse = new CustomResponse<BookingLog>(false, "Kayıt bulunamadı", null);
+                return NotFound(errorResponse);
+            }
+
+            bookingLog.bookingId = dto.bookingId;
+            bookingLog.time = dto.time;
+            bookingLog.type = dto.type;
+            bookingLog.userId = dto.userId;
+
+            var result = _bookingLogService.Update(bookingLog);
+            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Güncellendi.", result);
+            return Ok(response);
+        }
+
     }
 
 }

@@ -25,5 +25,17 @@ namespace Iroh.Services
             _context.SaveChanges();
             return log;
         }
+
+        public BookingLog? GetById(int id)
+        {
+            return _context.BookingLog.Find(id);
+        }
+
+        public BookingLog? Update(BookingLog log)
+        {
+            _context.BookingLog.Update(log);
+            _context.SaveChanges();
+            return log;
+        }
     }
 }
