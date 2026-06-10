@@ -6,6 +6,8 @@ namespace Iroh.Models.DTOs.Customer
 {
     public class CustomerUpdateDto
     {
+        [Required]
+        public int id { get; set; }
 
         [Required]
         public required string name { get; set; }

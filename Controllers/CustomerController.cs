@@ -43,10 +43,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, [FromBody] CustomerUpdateDto customerUpdateDto)
+        [HttpPut]
+        public IActionResult Update([FromBody] CustomerUpdateDto customerUpdateDto)
         {
-            var customer = _customerService.GetCustomerById(id);
+            var customer = _customerService.GetCustomerById(customerUpdateDto.id);
             if (customer == null)
             {
                 return NotFound();

@@ -27,10 +27,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, CompanyUpdateDto dto)
+        [HttpPut]
+        public IActionResult Update(CompanyUpdateDto dto)
         {
-            var company = _companyService.GetCompanyById(id);
+            var company = _companyService.GetCompanyById(dto.id);
             if (company == null)
             {
                 return NotFound();

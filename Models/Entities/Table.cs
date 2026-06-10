@@ -10,5 +10,11 @@ namespace Iroh.Models.Entities
 
         [Column("isdeleted")]
         public bool isDeleted { get; set; } = false;
+
+        [Column("createdat")]
+        public DateTime createdAt { get; set; } = DateTime.Now;
+
+        [Column("updatedat")]
+        public DateTime? updatedAt { get; set; } = DateTime.Now;
     }
 }

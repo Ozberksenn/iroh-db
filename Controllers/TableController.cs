@@ -38,10 +38,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, TableUpdateDto tableUpdateDto)
+        [HttpPut]
+        public IActionResult Update(TableUpdateDto tableUpdateDto)
         {
-            var table = _tableService.GetById(id);
+            var table = _tableService.GetById(tableUpdateDto.id);
             if (table == null)
             {
                 return NotFound();

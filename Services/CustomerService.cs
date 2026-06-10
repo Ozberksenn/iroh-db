@@ -18,7 +18,48 @@ namespace Iroh.Services
 
         public List<Customer> GetAll()
         {
-            return _context.Customer.ToList();
+            return _context.Customer.Where(c => !c.isDeleted && c.id != 999999).ToList();
+        }
+
+        public async Task<(List<object> items, double totalCount)> GetPaginated(string? status, int page, int size, string? name)
+        {
+            var now = DateTime.Now;
+
+            var baseQuery = from c in _context.Customer
+                            where !c.isDeleted && c.id != 999999
+                            let customerStatus = _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now) ? "ActiveSubscriber" :
+                                                _context.Purchase.Any(p => p.customerId == c.id) ? "Subscriber" : "Customer"
+                            let childrenNames = _context.Children
+                                                .Where(ch => ch.parentId == c.id && !ch.isDeleted)
+                                                .Select(ch => ch.name)
+                            select new
+                            {
+                                id = c.id,
+                                name = c.name,
+                                lastName = c.lastName,
+                                phone = c.phone,
+                                mail = c.mail,
+                                status = customerStatus,
+                                childrenNamesString = string.Join(" ", childrenNames)
+                            };
+
+            var filteredQuery = baseQuery.Where(c => 
+                (string.IsNullOrEmpty(name) || (
+                    c.name + " " + (c.lastName ?? "") + " " + (c.phone ?? "") + " " + (c.mail ?? "") + " " + c.childrenNamesString
+                ).ToLower().Contains(name.ToLower())) &&
+                (string.IsNullOrEmpty(status) || c.status == status)
+            );
+
+            var filteredList = filteredQuery.ToList();
+            var totalCount = filteredList.Count();
+            
+            var results = filteredList
+                .OrderBy(c => c.id)
+                .Skip(page == -1 ? 0 : (page - 1) * size)
+                .Take(page == -1 ? int.MaxValue : size)
+                .ToList();
+
+            return (results.Cast<object>().ToList(), (double)totalCount);
         }
         public Customer Create(Customer customer)
         {
@@ -29,6 +70,12 @@ namespace Iroh.Services
 
         public Customer Update(Customer customer)
         {
+            if (customer.id == 999999)
+            {
+                throw new InvalidOperationException("Sistem Misafiri kaydı değiştirilemez!");
+            }
+
+            customer.updatedAt = DateTime.UtcNow;
             _context.Customer.Update(customer);
             _context.SaveChanges();
             return customer;

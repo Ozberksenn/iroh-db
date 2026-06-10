@@ -12,12 +12,6 @@ namespace Iroh.Models.Entities
         [ForeignKey("tableId")]
         public Table? table { get; set; }
 
-        [Column("customerid")]
-        public int? customerId { get; set; }
-
-        [ForeignKey("customerId")]
-        public Customer? customer { get; set; }
-
         [Column("starttime")]
         public DateTime? startTime { get; set; }
 

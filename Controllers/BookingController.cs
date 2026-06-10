@@ -9,7 +9,6 @@ namespace Iroh.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class BookingController : ControllerBase
     {
         private readonly BookingService _bookingService;
@@ -53,10 +52,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, BookingUpdateDto bookingUpdateDto)
+        [HttpPut]
+        public IActionResult Update(BookingUpdateDto bookingUpdateDto)
         {
-            var updateBooking = _bookingService.Update(id, bookingUpdateDto);
+            var updateBooking = _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
             return updateBooking != null
                 ? Ok(new CustomResponse<Booking>(true, "Başarılı", updateBooking))
                 : NotFound(new CustomResponse<Booking>(false, "Kayıt bulunamadı", null));
