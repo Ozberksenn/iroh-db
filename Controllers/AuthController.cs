@@ -20,14 +20,27 @@ namespace Iroh.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginDto loginDto)
         {
-            var token = _authService.Login(loginDto.mail, loginDto.password);
+            var authResponse = _authService.Login(loginDto.mail, loginDto.password);
 
-            if (token == null)
+            if (authResponse == null)
             {
                 return Unauthorized(new CustomResponse<string>(false, "E-posta veya şifre hatalı!", null));
             }
 
-            return Ok(new CustomResponse<string>(true, "Giriş başarılı", token));
+            return Ok(new CustomResponse<AuthResponseDto>(true, "Giriş başarılı", authResponse));
+        }
+
+        [HttpPost("refresh")]
+        public IActionResult Refresh([FromBody] RefreshTokenDto refreshTokenDto)
+        {
+            var authResponse = _authService.RefreshToken(refreshTokenDto.refreshToken);
+
+            if (authResponse == null)
+            {
+                return Unauthorized(new CustomResponse<string>(false, "Geçersiz veya süresi dolmuş token!", null));
+            }
+
+            return Ok(new CustomResponse<AuthResponseDto>(true, "Token başarıyla yenilendi", authResponse));
         }
 
         [HttpPost("register")]

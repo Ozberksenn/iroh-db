@@ -1,5 +1,3 @@
-
-
 using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.Entities;
@@ -10,7 +8,6 @@ namespace Iroh.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
     public class PurchaseController : ControllerBase
     {
         private readonly PurchaseService _purchaseService;
@@ -24,60 +21,73 @@ namespace Iroh.Controllers
         public IActionResult Get()
         {
             var purchases = _purchaseService.GetAll();
-            var response = new CustomResponse<List<Purchase>>(true, "Başırlı", purchases);
+            var response = new CustomResponse<List<Purchase>>(true, "Başarılı", purchases);
             return Ok(response);
+        }
+
+        [HttpGet("customer")]
+        public async Task<IActionResult> GetByCustomer([FromQuery] long customerId)
+        {
+            var results = await _purchaseService.GetByCustomerId(customerId);
+            return Ok(new CustomResponse<List<CustomerPurchaseResultDto>>(true, "Başarılı", results));
+        }
+
+        [HttpGet("purchaseBookingsById")]
+        public async Task<IActionResult> GetPurchaseBookings([FromQuery] long purchaseId)
+        {
+            var results = await _purchaseService.GetPurchaseBookings(purchaseId);
+            return Ok(new CustomResponse<List<PurchaseBookingResultDto>>(true, "Başarılı", results));
         }
 
         [HttpPost]
-        public IActionResult Create(PurchaseCreateDto purchaseCreateDto)
-        {
-            var purchase = new Purchase
-            {
-                hours = purchaseCreateDto.hours,
-                price = purchaseCreateDto.price,
-                customerId = purchaseCreateDto.customerId,
-                startDate = purchaseCreateDto.startDate,
-                endDate = purchaseCreateDto.endDate,
-                createdAt = DateTime.UtcNow
-            };
-            var createdPurchase = _purchaseService.Create(purchase);
-            var response = new CustomResponse<Purchase>(true, "Başarılı", createdPurchase);
-            return Ok(response);
-        }
-
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, PurchaseUpdateDto purchaseUpdateDto)
+        public async Task<IActionResult> Create(PurchaseCreateDto purchaseCreateDto)
         {
             try
             {
-                var purchase = _purchaseService.GetById(id);
-                if (purchase == null)
+                var purchase = new Purchase
                 {
-                    var errorResponse = new CustomResponse<Purchase>(false, "Paket bulunamadı!", null);
-                    return NotFound(errorResponse);
-                }
-
-                var updatePurchase = _purchaseService.Update(
-                    purchase, 
-                    purchaseUpdateDto.hours, 
-                    purchaseUpdateDto.price, 
-                    purchaseUpdateDto.customerId, 
-                    purchaseUpdateDto.startDate, 
-                    purchaseUpdateDto.endDate
-                );
-
-                var response = new CustomResponse<Purchase>(true, "Başarılı", updatePurchase);
-                return Ok(response);
+                    hours = purchaseCreateDto.hours,
+                    price = purchaseCreateDto.price,
+                    customerId = purchaseCreateDto.customerId,
+                    startDate = purchaseCreateDto.startDate,
+                    endDate = purchaseCreateDto.endDate,
+                    createdAt = DateTime.UtcNow
+                };
+                await _purchaseService.Create(purchase);
+                return Ok(new CustomResponse<string>(true, "Paket başarıyla oluşturuldu", null));
             }
-            catch (KeyNotFoundException)
+            catch (Exception ex)
             {
-                var errorResponse = new CustomResponse<Purchase>(false, "Paket bulunamadı!", null);
-                return NotFound(errorResponse);
+                return BadRequest(new CustomResponse<string>(false, ex.Message, null));
             }
-            catch (InvalidOperationException ex)
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, PurchaseUpdateDto purchaseUpdateDto)
+        {
+            try
             {
-                var errorResponse = new CustomResponse<Purchase>(false, ex.Message, null);
-                return BadRequest(errorResponse);
+                await _purchaseService.Update(id, purchaseUpdateDto.hours, purchaseUpdateDto.price, purchaseUpdateDto.customerId, purchaseUpdateDto.startDate, purchaseUpdateDto.endDate);
+                return Ok(new CustomResponse<string>(true, "Paket başarıyla güncellendi", null));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new CustomResponse<string>(false, ex.Message, null));
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(long id)
+        {
+            try
+            {
+                await _purchaseService.Delete(id);
+                return Ok(new CustomResponse<string>(true, "Paket başarıyla silindi", null));
+            }
+            catch (Exception ex)
+            {
+                // SQL Prosedüründen gelen "silinemez" hatası burada yakalanacak
+                return BadRequest(new CustomResponse<string>(false, ex.Message, null));
             }
         }
     }

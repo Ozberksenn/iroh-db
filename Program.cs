@@ -43,6 +43,8 @@ builder.Services.AddScoped<BookingLogService>();
 builder.Services.AddScoped<PurchasePaymentService>();
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<ChildService>();
 
 // Sadece bunları tut
 builder.Services.AddControllers()

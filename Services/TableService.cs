@@ -1,6 +1,5 @@
-
-
 using Iroh.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
@@ -11,16 +10,10 @@ namespace Iroh.Services
         {
             _context = context;
         }
+
         public List<Table> GetAll()
         {
-            return _context.Table.ToList();
-        }
-        public Table? GetById(int id)
-        {
-            // _context.Table -> Senin DbSet'in (tablon)
-            // .FirstOrDefault -> Şarta uyan İLK kaydı getir, bulamazsan 'null' dön.
-            // t => t.id == id -> Lambda ifadesi (Sorgu şartı)
-            return _context.Table.FirstOrDefault(t => t.id == id);
+            return _context.Table.Where(t => !t.isDeleted).ToList();
         }
 
         public Table Create(Table table)
@@ -37,5 +30,14 @@ namespace Iroh.Services
             return table;
         }
 
+        public async Task Delete(long id)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($"CALL usp_delete_table({id})");
+        }
+
+        public Table? GetById(int id)
+        {
+            return _context.Table.FirstOrDefault(t => t.id == id && !t.isDeleted);
+        }
     }
 }

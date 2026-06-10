@@ -5,6 +5,7 @@ namespace Iroh.Models.Enums
         Create,
         Cancel,
         Complete,
-        Pause
+        Pause,
+        Continue
     }
 }

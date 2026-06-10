@@ -1,4 +1,6 @@
 using Iroh.Models.Entities;
+using Iroh.Models.DTOs.Purchase;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
@@ -9,8 +11,10 @@ namespace Iroh.Services
         {
             _context = context;
         }
+
         public List<Purchase> GetAll()
         {
+            // vw_purchases view'ını kullanabiliriz ama entity eşleşmesi için doğrudan tabloyu da çekebiliriz
             return _context.Purchase.ToList();
         }
 
@@ -24,43 +28,34 @@ namespace Iroh.Services
             return purchase;
         }
 
-        public Purchase Create(Purchase purchaseCreateDto)
+        public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
         {
-            if (purchaseCreateDto.customerId == 999999)
-            {
-                throw new InvalidOperationException("Sistem Misafiri kaydına paket tanımlanamaz!");
-            }
-            _context.Purchase.Add(purchaseCreateDto);
-            _context.SaveChanges();
-            return purchaseCreateDto;
+            return await _context.CustomerPurchaseResults
+                .FromSqlInterpolated($"SELECT * FROM fn_get_purchase_by_customer_id({customerId})")
+                .ToListAsync();
         }
 
-        public Purchase Update(Purchase purchase, int newHours, int newPrice, int newCustomerId, DateTime? newStartDate, DateTime? newEndDate)
+        public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(long purchaseId)
         {
-            // 1. Mevcut saati ve kullanım durumlarını kontrol et
-            // Not: purchase nesnesi zaten veritabanından çekilmiş eski değerleri taşıyor olmalı.
-
-            bool hasUsage = _context.purchaseBookings.Any(pb => pb.purchaseId == purchase.id);
-            bool hasPayments = _context.purchasePayments.Any(pp => pp.purchaseId == purchase.id);
-
-            // 2. Eğer saat değiştirilmek isteniyorsa ve kullanım/ödeme varsa ENGELLE
-            if (purchase.hours != newHours && (hasUsage || hasPayments))
-            {
-                throw new InvalidOperationException("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
-            }
-
-            // 3. Güncelleme işlemini yap
-            purchase.hours = newHours;
-            purchase.price = newPrice;
-            purchase.customerId = newCustomerId;
-            purchase.startDate = newStartDate;
-            purchase.endDate = newEndDate;
-            purchase.updatedAt = DateTime.UtcNow;
-
-            _context.Purchase.Update(purchase);
-            _context.SaveChanges();
-            return purchase;
+            return await _context.PurchaseBookingResults
+                .FromSqlInterpolated($"SELECT * FROM usp_get_purchase_bookings_by_id({purchaseId})")
+                .ToListAsync();
         }
 
+        public async Task Create(Purchase purchase)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($"CALL usp_insert_purchase({purchase.hours}, {purchase.price}, {purchase.customerId}, {purchase.startDate}, {purchase.endDate})");
+        }
+
+        public async Task Update(long id, int hours, int price, long customerId, DateTime? startDate, DateTime? endDate)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($"CALL usp_update_purchase({id}, {hours}, {price}, {customerId}, {startDate}, {endDate})");
+        }
+
+        public async Task Delete(long id)
+        {
+            // Bu prosedür her zaman hata fırlatacak (iş kuralı gereği)
+            await _context.Database.ExecuteSqlInterpolatedAsync($"CALL usp_delete_purchase({id})");
+        }
     }
 }

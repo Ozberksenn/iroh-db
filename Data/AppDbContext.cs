@@ -18,10 +18,17 @@ public class AppDbContext : DbContext
     public DbSet<PurchasePayment> purchasePayments { get; set; }
 
     public DbSet<Child> Children { get; set; }
+    public DbSet<Iroh.Models.DTOs.Child.UnifiedSearchResultDto> UnifiedSearchResults { get; set; }
+    public DbSet<Iroh.Models.DTOs.Purchase.CustomerPurchaseResultDto> CustomerPurchaseResults { get; set; }
+    public DbSet<Iroh.Models.DTOs.Purchase.PurchaseBookingResultDto> PurchaseBookingResults { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Iroh.Models.DTOs.Child.UnifiedSearchResultDto>().HasNoKey();
+        modelBuilder.Entity<Iroh.Models.DTOs.Purchase.CustomerPurchaseResultDto>().HasNoKey();
+        modelBuilder.Entity<Iroh.Models.DTOs.Purchase.PurchaseBookingResultDto>().HasNoKey();
 
         // BookingStatus enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
         modelBuilder.Entity<Booking>()

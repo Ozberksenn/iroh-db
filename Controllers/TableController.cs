@@ -1,9 +1,8 @@
-
+using Iroh.Models.CustomResponses;
+using Iroh.Models.DTOs.Table;
+using Iroh.Models.Entities;
 using Iroh.Services;
 using Microsoft.AspNetCore.Mvc;
-using Iroh.Models.CustomResponses;
-using Iroh.Models.Entities;
-using Iroh.Models.DTOs.Table;
 
 namespace Iroh.Controllers
 {
@@ -23,7 +22,7 @@ namespace Iroh.Controllers
         public IActionResult Get()
         {
             var tables = _tableService.GetAll();
-            var response = new CustomResponse<List<Table>>(true, "Masalar başarıyla getirildi", tables);
+            var response = new CustomResponse<List<Table>>(true, "Başarılı", tables);
             return Ok(response);
         }
 
@@ -45,27 +44,31 @@ namespace Iroh.Controllers
             var table = _tableService.GetById(id);
             if (table == null)
             {
-                var errorResponse = new CustomResponse<string>(false, "Masa bulunamadı", null);
-                return NotFound(errorResponse);
+                return NotFound();
             }
             table.name = tableUpdateDto.name;
+            table.updatedAt = DateTime.UtcNow;
+
             var updatedTable = _tableService.Update(table);
             var response = new CustomResponse<Table>(true, "Masa başarıyla güncellendi", updatedTable);
             return Ok(response);
         }
 
-        // [HttpPut("{id}")]
-        // public IActionResult Delete(int id)
-        // {
-        //     var table = _tableService.GetById(id);
-        //     if (table == null)
-        //     {
-        //         var errorResponse = new CustomResponse<string>(false, "Masa bulunamadı", null);
-        //         return NotFound(errorResponse);
-        //     }
-        //     _tableService.Update(table);
-        //     var response = new CustomResponse<string>(true, "Masa başarıyla silindi", null);
-        //     return Ok(response);
-        // }
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(long id)
+        {
+            try
+            {
+                await _tableService.Delete(id);
+                var response = new CustomResponse<string>(true, "Masa başarıyla silindi", null);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                // SQL Prosedüründen gelen "aktif rezervasyon var" hatası burada yakalanacak
+                var errorResponse = new CustomResponse<string>(false, ex.Message, null);
+                return BadRequest(errorResponse);
+            }
+        }
     }
 }
