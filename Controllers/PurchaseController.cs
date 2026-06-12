@@ -2,12 +2,15 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
+
     public class PurchaseController : ControllerBase
     {
         private readonly PurchaseService _purchaseService;

@@ -3,11 +3,13 @@ using Iroh.Models.DTOs.Company;
 using Iroh.Models.DTOs.Customer;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 

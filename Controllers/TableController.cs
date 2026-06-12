@@ -2,10 +2,12 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Table;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
