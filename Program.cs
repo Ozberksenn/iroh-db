@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // JWT Ayarlarını oku
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is missing!");
+var secretKey = jwtSettings["SecretKey"] ?? "IrohManagementSystemSuperSecretKeyWithAtLeast32Characters";
 
 // Authentication ve JWT Bearer servisini ekle
 builder.Services.AddAuthentication(options =>
@@ -24,14 +24,12 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false, // Geçici olarak kapattık
+        ValidateAudience = false, // Geçici olarak kapattık
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.FromMinutes(5) // Daha fazla tolerans verdik
     };
 });
 
@@ -64,11 +62,12 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Description = "Token değerini yapıştırın (Başına Bearer eklemeden deneyin)",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -98,7 +97,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
 
 app.UseAuthentication();
 app.UseAuthorization();

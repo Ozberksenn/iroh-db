@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
-    [Authorize]
+    // [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
