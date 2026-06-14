@@ -16,7 +16,7 @@ namespace Iroh.Services
         // vw_tables: id, name (isdeleted=false) + opsiyonel name ILIKE filtresi.
         public async Task<List<TableDto>> GetAll(string? name)
         {
-            var query = _context.Table.Where(t => !t.isDeleted);
+            var query = _context.Tables.Where(t => !t.isDeleted);
             if (!string.IsNullOrWhiteSpace(name))
             {
                 query = query.Where(t => EF.Functions.ILike(t.name, "%" + name + "%"));
@@ -26,14 +26,14 @@ namespace Iroh.Services
 
         public async Task<Table> Create(Table table)
         {
-            _context.Table.Add(table);
+            _context.Tables.Add(table);
             await _context.SaveChangesAsync();
             return table;
         }
 
         public async Task<Table> Update(Table table)
         {
-            _context.Table.Update(table);
+            _context.Tables.Update(table);
             await _context.SaveChangesAsync();
             return table;
         }
@@ -41,13 +41,13 @@ namespace Iroh.Services
         public async Task Delete(long id)
         {
             // aktif booking kontrolü (usp_delete_table logic)
-            var hasActiveBooking = await _context.Booking.AnyAsync(b => b.tableId == (int)id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
+            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.tableId == (int)id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
             if (hasActiveBooking)
             {
                 throw new BusinessRuleException("Bu masaya ait aktif rezervasyon var. Silinemez!");
             }
 
-            var table = await _context.Table.FindAsync((int)id);
+            var table = await _context.Tables.FindAsync((int)id);
             if (table != null)
             {
                 table.isDeleted = true;
@@ -56,6 +56,6 @@ namespace Iroh.Services
         }
 
         public async Task<Table?> GetById(int id) =>
-            await _context.Table.FirstOrDefaultAsync(t => t.id == id && !t.isDeleted);
+            await _context.Tables.FirstOrDefaultAsync(t => t.id == id && !t.isDeleted);
     }
 }

@@ -18,7 +18,7 @@ namespace Iroh.Services
         // vw_purchases: id, hours, price, customerId, startDate, endDate
         public async Task<List<PurchaseListDto>> GetAll()
         {
-            return await _context.Purchase
+            return await _context.Purchases
                 .Select(p => new PurchaseListDto
                 {
                     id = p.id,
@@ -33,7 +33,7 @@ namespace Iroh.Services
 
         public Purchase GetById(int id)
         {
-            var purchase = _context.Purchase.Find(id);
+            var purchase = _context.Purchases.Find(id);
             if (purchase == null)
             {
                 throw new KeyNotFoundException("Purchase not found");
@@ -44,19 +44,19 @@ namespace Iroh.Services
         // fn_get_purchase_by_customer_id: müşterinin paketleri + usedMinutes (DAKİKA) + gerçek payments listesi.
         public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
         {
-            var purchases = await _context.Purchase
+            var purchases = await _context.Purchases
                 .Where(p => p.customerId == customerId)
                 .OrderByDescending(p => p.createdAt)
                 .ToListAsync();
             if (purchases.Count == 0) return new();
 
             var purchaseIds = purchases.Select(p => p.id).ToList();
-            var payments = await _context.purchasePayments
+            var payments = await _context.PurchasePayments
                 .Where(pp => purchaseIds.Contains(pp.purchaseId))
                 .ToListAsync();
-            var linked = await _context.purchaseBookings
+            var linked = await _context.PurchaseBookings
                 .Where(pb => purchaseIds.Contains(pb.purchaseId))
-                .Join(_context.Booking, pb => pb.bookingId, b => b.id,
+                .Join(_context.Bookings, pb => pb.bookingId, b => b.id,
                       (pb, b) => new { pb.purchaseId, b.subscriptionStartTime, b.subscriptionEndTime })
                 .ToListAsync();
 
@@ -84,7 +84,7 @@ namespace Iroh.Services
         // Proc'taki bozuk b.customerId (yok olan kolon) yerine customerId child.parentId'den türetilir (D7).
         public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(long purchaseId)
         {
-            var rows = await _context.purchaseBookings
+            var rows = await _context.PurchaseBookings
                 .Where(pb => pb.purchaseId == purchaseId && pb.booking != null && pb.booking.tableId != null)
                 .Select(pb => new
                 {
@@ -126,21 +126,21 @@ namespace Iroh.Services
                 throw new BusinessRuleException("Sistem Misafiri kaydına paket tanımlanamaz!");
             }
             purchase.createdAt = DateTime.Now;
-            _context.Purchase.Add(purchase);
+            _context.Purchases.Add(purchase);
             await _context.SaveChangesAsync();
         }
 
         // usp_update_purchase: kullanım/ödeme varsa ana saat değiştirilemez.
         public async Task Update(PurchaseUpdateDto dto)
         {
-            var purchase = await _context.Purchase.FindAsync(dto.id);
+            var purchase = await _context.Purchases.FindAsync(dto.id);
             if (purchase == null)
             {
                 throw new NotFoundException("Paket bulunamadı!");
             }
 
-            var hasUsage = await _context.purchaseBookings.AnyAsync(pb => pb.purchaseId == dto.id);
-            var hasPayments = await _context.purchasePayments.AnyAsync(pp => pp.purchaseId == dto.id);
+            var hasUsage = await _context.PurchaseBookings.AnyAsync(pb => pb.purchaseId == dto.id);
+            var hasPayments = await _context.PurchasePayments.AnyAsync(pp => pp.purchaseId == dto.id);
 
             if (purchase.hours != dto.hours && (hasUsage || hasPayments))
             {

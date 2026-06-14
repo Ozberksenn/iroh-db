@@ -19,18 +19,18 @@ namespace Iroh.Services
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
         public async Task<Customer?> GetById(int id) =>
-            await _context.Customer.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+            await _context.Customers.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
 
         // Update/Delete'in iç kullanımı — soft-delete filtresi uygulamaz.
         public async Task<Customer?> GetCustomerById(int id) =>
-            await _context.Customer.FirstOrDefaultAsync(c => c.id == id);
+            await _context.Customers.FirstOrDefaultAsync(c => c.id == id);
 
         // fn_get_customers paritesi: hesaplanmış abone statüsü + serbest metin arama + sayfalama.
         public async Task<PagedResult<CustomerListItemDto>> GetCustomers(string? status, int page, int size, string? name)
         {
             var now = DateTime.UtcNow;
 
-            var query = _context.Customer.Where(c => !c.isDeleted && c.id != SystemGuestId);
+            var query = _context.Customers.Where(c => !c.isDeleted && c.id != SystemGuestId);
 
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -47,11 +47,11 @@ namespace Iroh.Services
                 query = status switch
                 {
                     "ActiveSubscriber" => query.Where(c =>
-                        _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
+                        _context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
                     "Subscriber" => query.Where(c =>
-                        _context.Purchase.Any(p => p.customerId == c.id)
-                        && !_context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
-                    "Customer" => query.Where(c => !_context.Purchase.Any(p => p.customerId == c.id)),
+                        _context.Purchases.Any(p => p.customerId == c.id)
+                        && !_context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
+                    "Customer" => query.Where(c => !_context.Purchases.Any(p => p.customerId == c.id)),
                     _ => query
                 };
             }
@@ -71,9 +71,9 @@ namespace Iroh.Services
                 lastName = c.lastName,
                 phone = c.phone,
                 mail = c.mail,
-                status = _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)
+                status = _context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)
                     ? "ActiveSubscriber"
-                    : _context.Purchase.Any(p => p.customerId == c.id)
+                    : _context.Purchases.Any(p => p.customerId == c.id)
                         ? "Subscriber"
                         : "Customer"
             }).ToListAsync();
@@ -90,7 +90,7 @@ namespace Iroh.Services
 
         public async Task<Customer> Create(Customer customer)
         {
-            _context.Customer.Add(customer);
+            _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
             return customer;
         }
@@ -103,7 +103,7 @@ namespace Iroh.Services
             }
 
             customer.updatedAt = DateTime.UtcNow;
-            _context.Customer.Update(customer);
+            _context.Customers.Update(customer);
             await _context.SaveChangesAsync();
             return customer;
         }
@@ -116,7 +116,7 @@ namespace Iroh.Services
             }
 
             // Aktif/Beklemede oturumu olan bir çocuk varsa engelle.
-            var hasActiveBooking = await _context.Booking
+            var hasActiveBooking = await _context.Bookings
                 .AnyAsync(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
                           && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
 
@@ -136,7 +136,7 @@ namespace Iroh.Services
             customer.isDeleted = true;
             customer.updatedAt = DateTime.UtcNow;
 
-            _context.Customer.Update(customer);
+            _context.Customers.Update(customer);
             await _context.SaveChangesAsync();
             return customer;
         }

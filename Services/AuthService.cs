@@ -22,7 +22,7 @@ namespace Iroh.Services
 
         public async Task<AuthResponseDto?> Login(string mail, string password)
         {
-            var user = await _context.User.FirstOrDefaultAsync(u => u.mail == mail && u.isActive);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.mail == mail && u.isActive);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.password))
             {
@@ -55,7 +55,7 @@ namespace Iroh.Services
                 var jwtToken = (JwtSecurityToken)validatedToken;
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == JwtRegisteredClaimNames.Sub).Value);
 
-                var user = await _context.User.FirstOrDefaultAsync(u => u.id == userId && u.isActive);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.id == userId && u.isActive);
                 if (user == null) return null;
 
                 return GenerateAuthResponse(user);
@@ -68,7 +68,7 @@ namespace Iroh.Services
 
         public async Task<User> Register(User user)
         {
-            if (await _context.User.AnyAsync(u => u.mail == user.mail))
+            if (await _context.Users.AnyAsync(u => u.mail == user.mail))
             {
                 throw new BusinessRuleException("Bu e-posta adresi zaten kullanımda!");
             }
@@ -76,7 +76,7 @@ namespace Iroh.Services
             user.password = BCrypt.Net.BCrypt.HashPassword(user.password);
             user.isActive = true;
 
-            _context.User.Add(user);
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
             return user;
         }

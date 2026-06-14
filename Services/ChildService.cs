@@ -26,7 +26,7 @@ namespace Iroh.Services
             var pattern = "%" + (search ?? "") + "%";
 
             var rows = await (
-                from c in _context.Customer.Where(c => !c.isDeleted && c.id != SystemGuestId)
+                from c in _context.Customers.Where(c => !c.isDeleted && c.id != SystemGuestId)
                 from ch in _context.Children.Where(ch => ch.parentId == c.id && !ch.isDeleted).DefaultIfEmpty()
                 where EF.Functions.ILike(c.name, pattern)
                    || (c.lastName != null && EF.Functions.ILike(c.lastName, pattern))
@@ -50,7 +50,7 @@ namespace Iroh.Services
 
             // is_active + current_table_name: Active/Paused oturumu olan çocuklar.
             var childIds = rows.Where(r => r.childId.HasValue).Select(r => r.childId!.Value).Distinct().ToList();
-            var activeBookings = await _context.Booking
+            var activeBookings = await _context.Bookings
                 .Where(b => b.childId != null && childIds.Contains(b.childId.Value)
                          && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused))
                 .Select(b => new { ChildId = b.childId!.Value, TableName = b.table != null ? b.table.name : null })
@@ -147,7 +147,7 @@ namespace Iroh.Services
 
         public async Task DeleteChild(long id)
         {
-            var hasActiveBooking = await _context.Booking.AnyAsync(b => b.childId == id && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
+            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.childId == id && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
             if (hasActiveBooking)
             {
                 throw new BusinessRuleException("Bu çocuğun şu an içeride aktif bir oturumu var. Oturum kapatılmadan silinemez!");

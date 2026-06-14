@@ -12,24 +12,24 @@ namespace Iroh.Services
         }
 
         public async Task<List<BookingLog>> GetAll() =>
-            await _context.BookingLog
+            await _context.BookingLogs
                 .Include(b => b.booking)
                 .OrderByDescending(b => b.time)
                 .ToListAsync();
 
         public async Task<BookingLog> Create(BookingLog log)
         {
-            _context.BookingLog.Add(log);
+            _context.BookingLogs.Add(log);
             await _context.SaveChangesAsync();
             return log;
         }
 
         public async Task<BookingLog?> GetById(int id) =>
-            await _context.BookingLog.FindAsync(id);
+            await _context.BookingLogs.FindAsync(id);
 
         public async Task<BookingLog> Update(BookingLog log)
         {
-            _context.BookingLog.Update(log);
+            _context.BookingLogs.Update(log);
             await _context.SaveChangesAsync();
             return log;
         }

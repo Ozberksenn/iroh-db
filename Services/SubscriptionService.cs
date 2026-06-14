@@ -34,12 +34,12 @@ namespace Iroh.Services
             var result = new Dictionary<int, ParentSubscription>();
             if (parentIds.Count == 0) return result;
 
-            var purchases = await _context.Purchase.Where(p => parentIds.Contains(p.customerId)).ToListAsync();
+            var purchases = await _context.Purchases.Where(p => parentIds.Contains(p.customerId)).ToListAsync();
             var purchaseIds = purchases.Select(p => p.id).ToList();
-            var payments = await _context.purchasePayments.Where(pp => purchaseIds.Contains(pp.purchaseId)).ToListAsync();
-            var linked = await _context.purchaseBookings
+            var payments = await _context.PurchasePayments.Where(pp => purchaseIds.Contains(pp.purchaseId)).ToListAsync();
+            var linked = await _context.PurchaseBookings
                 .Where(pb => purchaseIds.Contains(pb.purchaseId))
-                .Join(_context.Booking, pb => pb.bookingId, b => b.id,
+                .Join(_context.Bookings, pb => pb.bookingId, b => b.id,
                       (pb, b) => new { pb.purchaseId, b.subscriptionStartTime, b.subscriptionEndTime })
                 .ToListAsync();
 
@@ -91,7 +91,7 @@ namespace Iroh.Services
         // vw_activebookings: Active/Paused oturumlar + ebeveyn başına en iyi paket, abone kademesi (5'li), usedMinutes, payments, logs.
         public async Task<List<ActiveBookingDto>> GetActiveBookings()
         {
-            var bookings = await _context.Booking
+            var bookings = await _context.Bookings
                 .Include(b => b.table)
                 .Include(b => b.child).ThenInclude(ch => ch.parent)
                 .Include(b => b.logs)

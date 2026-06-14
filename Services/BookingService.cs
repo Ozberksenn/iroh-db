@@ -21,7 +21,7 @@ namespace Iroh.Services
             int? customerId, int? childId, DateTime? startTime, DateTime? endTime, int? tableId)
         {
             // NOT: p_mail proc imzasında var ama gövdesinde kullanılmıyor (no-op) — parite için yok sayıldı.
-            var query = _context.Booking.AsQueryable();
+            var query = _context.Bookings.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -103,7 +103,7 @@ namespace Iroh.Services
         }
 
         public async Task<Booking?> GetById(int id) =>
-            await _context.Booking
+            await _context.Bookings
                 .Include(b => b.table)
                 .Include(b => b.child)
                     .ThenInclude(c => c.parent)
@@ -111,14 +111,14 @@ namespace Iroh.Services
 
         public async Task<Booking> Create(Booking booking)
         {
-            _context.Booking.Add(booking);
+            _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
             return booking;
         }
 
         public async Task<Booking> Update(int id, BookingUpdateDto updatedBooking)
         {
-            var existingBooking = await _context.Booking.FindAsync(id);
+            var existingBooking = await _context.Bookings.FindAsync(id);
             if (existingBooking == null)
             {
                 throw new NotFoundException("Kayıt bulunamadı");
@@ -137,10 +137,10 @@ namespace Iroh.Services
             // Eğer bir paket (Purchase) kullanılıyorsa, onu da bağla (usp_update_booking logic)
             if (updatedBooking.purchaseId.HasValue)
             {
-                var exists = await _context.purchaseBookings.AnyAsync(pb => pb.bookingId == existingBooking.id && pb.purchaseId == updatedBooking.purchaseId.Value);
+                var exists = await _context.PurchaseBookings.AnyAsync(pb => pb.bookingId == existingBooking.id && pb.purchaseId == updatedBooking.purchaseId.Value);
                 if (!exists)
                 {
-                    _context.purchaseBookings.Add(new PurchaseBooking
+                    _context.PurchaseBookings.Add(new PurchaseBooking
                     {
                         bookingId = existingBooking.id,
                         purchaseId = updatedBooking.purchaseId.Value

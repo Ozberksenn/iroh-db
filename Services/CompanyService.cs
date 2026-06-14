@@ -12,14 +12,14 @@ namespace Iroh.Services
         }
 
         public async Task<List<Company>> GetAll() =>
-            await _context.Company.ToListAsync();
+            await _context.Companies.ToListAsync();
 
         public async Task<Company?> GetCompanyById(int id) =>
-            await _context.Company.FirstOrDefaultAsync(c => c.id == id);
+            await _context.Companies.FirstOrDefaultAsync(c => c.id == id);
 
         public async Task<Company> Update(Company company)
         {
-            _context.Company.Update(company);
+            _context.Companies.Update(company);
             await _context.SaveChangesAsync();
             return company;
         }
