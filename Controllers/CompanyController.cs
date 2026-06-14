@@ -2,11 +2,13 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Company;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
@@ -27,10 +29,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, CompanyUpdateDto dto)
+        [HttpPut]
+        public IActionResult Update(CompanyUpdateDto dto)
         {
-            var company = _companyService.GetCompanyById(id);
+            var company = _companyService.GetCompanyById(dto.id);
             if (company == null)
             {
                 return NotFound();

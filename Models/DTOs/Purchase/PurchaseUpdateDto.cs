@@ -5,6 +5,9 @@ namespace Iroh.Models.DTOs.Purchase
 {
     public class PurchaseUpdateDto
     {
+        [Required]
+        public int id { get; set; }
+
         public required int hours { get; set; }
 
         public required int price { get; set; }

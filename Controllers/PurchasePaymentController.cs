@@ -5,10 +5,12 @@ using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.DTOs.PurchasePayment;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 

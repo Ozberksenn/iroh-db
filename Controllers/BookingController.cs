@@ -3,10 +3,12 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Booking;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
@@ -53,10 +55,10 @@ namespace Iroh.Controllers
             return Ok(response);
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, BookingUpdateDto bookingUpdateDto)
+        [HttpPut]
+        public IActionResult Update(BookingUpdateDto bookingUpdateDto)
         {
-            var updateBooking = _bookingService.Update(id, bookingUpdateDto);
+            var updateBooking = _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
             return updateBooking != null
                 ? Ok(new CustomResponse<Booking>(true, "Başarılı", updateBooking))
                 : NotFound(new CustomResponse<Booking>(false, "Kayıt bulunamadı", null));

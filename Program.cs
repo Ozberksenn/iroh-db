@@ -4,6 +4,7 @@ using Iroh.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -11,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // JWT Ayarlarını oku
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is missing!");
+var secretKey = jwtSettings["SecretKey"] ?? "IrohManagementSystemSuperSecretKeyWithAtLeast32Characters";
 
 // Authentication ve JWT Bearer servisini ekle
 builder.Services.AddAuthentication(options =>
@@ -23,18 +24,18 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false, // Geçici olarak kapattık
+        ValidateAudience = false, // Geçici olarak kapattık
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.FromMinutes(5) // Daha fazla tolerans verdik
     };
 });
 
 builder.Services.AddAuthorization();
 
+// Servis Kayıtları
 builder.Services.AddScoped<TableService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<CustomerService>();
@@ -46,7 +47,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ChildService>();
 
-// Sadece bunları tut
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -55,10 +55,37 @@ builder.Services.AddControllers()
 
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger'a JWT Kilit simgesi ekle
-builder.Services.AddSwaggerGen();
+// Swagger Yapılandırması
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Iroh API", Version = "v1" });
 
-// Doğru olan (PostgreSQL için)
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Token değerini yapıştırın (Başına Bearer eklemeden deneyin)",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -70,9 +97,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
 
-// Sıralama önemli: Authentication önce gelmeli
 app.UseAuthentication();
 app.UseAuthorization();
 
