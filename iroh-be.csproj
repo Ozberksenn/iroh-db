@@ -10,6 +10,13 @@
     <RootNamespace>iroh_be</RootNamespace>
   </PropertyGroup>
 
+  <!-- Test projesi tests/ altında ayrı derlenir; bu web projesi (SDK globbing) onu dahil etmemeli. -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Content Remove="tests/**/*" />
+    <None Remove="tests/**/*" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />

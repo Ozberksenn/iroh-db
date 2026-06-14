@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, "feature/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore iroh-be.sln
+
+      - name: Build
+        run: dotnet build iroh-be.sln --configuration Release --no-restore
+
+      # Birim/billing testleri EF InMemory + saf mantık — canlı DB veya secret gerektirmez.
+      # (Canlı proc paritesi ayrı bir geliştirici aracıdır: scripts/parity-check.sh)
+      - name: Test
+        run: dotnet test tests/Iroh.Tests.csproj --configuration Release --no-build --verbosity normal
