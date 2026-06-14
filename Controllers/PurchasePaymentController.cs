@@ -1,3 +1,4 @@
+using Iroh.Models.DTOs.Booking;
 using Iroh.Models.DTOs.PurchasePayment;
 using Iroh.Models.Entities;
 using Iroh.Models.Responses;
@@ -23,7 +24,7 @@ namespace Iroh.Controllers
         public async Task<IActionResult> Get()
         {
             var purchasePayments = await _purchasePaymentService.GetAll();
-            return Ok(ApiResponse.Ok(purchasePayments, "Başarılı"));
+            return Ok(ApiResponse.Ok(purchasePayments.Select(PaymentDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPost]
@@ -35,8 +36,8 @@ namespace Iroh.Controllers
                 price = dto.price,
                 purchaseId = dto.purchaseId
             };
-            await _purchasePaymentService.Create(purchasePayment);
-            return Ok(ApiResponse.Ok(purchasePayment, "Başarıyla oluşturuldu"));
+            var created = await _purchasePaymentService.Create(purchasePayment);
+            return Ok(ApiResponse.Ok(PaymentDto.From(created), "Başarıyla oluşturuldu"));
         }
     }
 }

@@ -30,14 +30,14 @@ namespace Iroh.Controllers
         {
             // Sistem misafiri → servis BusinessRuleException atar → handler 400.
             var child = await _childService.CreateChild(parentId, dto.name, dto.birthDate);
-            return Ok(ApiResponse.Ok(child, "Çocuk başarıyla oluşturuldu"));
+            return Ok(ApiResponse.Ok(ChildDto.From(child!), "Çocuk başarıyla oluşturuldu"));
         }
 
         [HttpGet("customers/{parentId}")]
         public async Task<IActionResult> GetByParent(int parentId)
         {
             var children = await _childService.GetChildrenByParentId(parentId);
-            return Ok(ApiResponse.Ok(children, "Başarılı"));
+            return Ok(ApiResponse.Ok(children.Select(ChildDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPut]

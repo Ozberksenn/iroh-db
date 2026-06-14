@@ -1,4 +1,5 @@
 using Iroh.Exceptions;
+using Iroh.Models.DTOs.Booking;
 using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
 using Iroh.Models.Responses;
@@ -24,7 +25,7 @@ namespace Iroh.Controllers
         public async Task<IActionResult> Get()
         {
             var bookingLogs = await _bookingLogService.GetAll();
-            return Ok(ApiResponse.Ok(bookingLogs, "Başarılı"));
+            return Ok(ApiResponse.Ok(bookingLogs.Select(BookingLogDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPost]
@@ -38,7 +39,7 @@ namespace Iroh.Controllers
                 userId = dto.userId
             };
             var result = await _bookingLogService.Create(bookingLog);
-            return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Oluşturuldu."));
+            return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Oluşturuldu."));
         }
 
         [HttpPut("{id}")]
@@ -56,7 +57,7 @@ namespace Iroh.Controllers
             bookingLog.userId = dto.userId;
 
             var result = await _bookingLogService.Update(bookingLog);
-            return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Güncellendi."));
+            return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Güncellendi."));
         }
     }
 }

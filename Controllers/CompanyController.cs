@@ -23,7 +23,7 @@ namespace Iroh.Controllers
         public async Task<IActionResult> Get()
         {
             var companies = await _companyService.GetAll();
-            return Ok(ApiResponse.Ok(companies, "Başarılı"));
+            return Ok(ApiResponse.Ok(companies.Select(CompanyDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPut]
@@ -40,7 +40,7 @@ namespace Iroh.Controllers
             company.additionalHalfHourPrice = dto.additionalHalfHourPrice;
 
             await _companyService.Update(company);
-            return Ok(ApiResponse.Ok(company, "Bilgiler Başarıyla Güncellendi."));
+            return Ok(ApiResponse.Ok(CompanyDto.From(company), "Bilgiler Başarıyla Güncellendi."));
         }
     }
 }

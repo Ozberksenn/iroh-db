@@ -38,7 +38,7 @@ namespace Iroh.Controllers
             {
                 throw new NotFoundException("Müşteri bulunamadı");
             }
-            return Ok(ApiResponse.Ok(customer));
+            return Ok(ApiResponse.Ok(CustomerDto.From(customer)));
         }
 
         [HttpPost]
@@ -52,7 +52,7 @@ namespace Iroh.Controllers
                 mail = customerCreateDto.mail
             };
             var createdCustomer = await _customerService.Create(customer);
-            return Ok(ApiResponse.Ok(createdCustomer, "Müşteri başarıyla oluşturuldu"));
+            return Ok(ApiResponse.Ok(CustomerDto.From(createdCustomer), "Müşteri başarıyla oluşturuldu"));
         }
 
         [HttpPut]
@@ -70,7 +70,7 @@ namespace Iroh.Controllers
             customer.mail = customerUpdateDto.mail;
 
             var updatedCustomer = await _customerService.Update(customer);
-            return Ok(ApiResponse.Ok(updatedCustomer, "Müşteri başarıyla güncellendi"));
+            return Ok(ApiResponse.Ok(CustomerDto.From(updatedCustomer), "Müşteri başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
@@ -84,7 +84,7 @@ namespace Iroh.Controllers
 
             // Aktif oturum / sistem misafiri → servis BusinessRuleException atar → handler 400.
             var deletedCustomer = await _customerService.Delete(customer);
-            return Ok(ApiResponse.Ok(deletedCustomer, "Müşteri başarıyla silindi"));
+            return Ok(ApiResponse.Ok(CustomerDto.From(deletedCustomer), "Müşteri başarıyla silindi"));
         }
     }
 }

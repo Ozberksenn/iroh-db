@@ -47,6 +47,14 @@ namespace Iroh.Models.DTOs.Booking
         public int purchaseId { get; set; }
         public decimal hours { get; set; }
         public decimal price { get; set; }
+
+        public static PaymentDto From(Iroh.Models.Entities.PurchasePayment p) => new()
+        {
+            id = p.id,
+            purchaseId = p.purchaseId,
+            hours = p.hours,
+            price = p.price
+        };
     }
 
     public class BookingLogDto
@@ -56,5 +64,14 @@ namespace Iroh.Models.DTOs.Booking
         public DateTime time { get; set; }
         public string type { get; set; } = string.Empty;
         public int? userId { get; set; }
+
+        public static BookingLogDto From(Iroh.Models.Entities.BookingLog l) => new()
+        {
+            id = l.id,
+            bookingId = l.bookingId,
+            time = l.time,
+            type = l.type.ToString(),
+            userId = l.userId
+        };
     }
 }

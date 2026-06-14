@@ -33,7 +33,7 @@ namespace Iroh.Controllers
         {
             var table = new Table { name = tableCreateDto.name };
             var createdTable = await _tableService.Create(table);
-            return Ok(ApiResponse.Ok(createdTable, "Masa başarıyla oluşturuldu"));
+            return Ok(ApiResponse.Ok(new TableDto { id = createdTable.id, name = createdTable.name }, "Masa başarıyla oluşturuldu"));
         }
 
         [HttpPut]
@@ -47,7 +47,7 @@ namespace Iroh.Controllers
             table.name = tableUpdateDto.name;
 
             var updatedTable = await _tableService.Update(table);
-            return Ok(ApiResponse.Ok(updatedTable, "Masa başarıyla güncellendi"));
+            return Ok(ApiResponse.Ok(new TableDto { id = updatedTable.id, name = updatedTable.name }, "Masa başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]

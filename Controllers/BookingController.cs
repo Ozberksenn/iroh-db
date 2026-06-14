@@ -61,7 +61,7 @@ namespace Iroh.Controllers
                 note = bookingCreateDto.note
             };
             var createdBooking = await _bookingService.Create(booking);
-            return Ok(ApiResponse.Ok(createdBooking, "Başarılı"));
+            return Ok(ApiResponse.Ok(BookingDto.From(createdBooking), "Başarılı"));
         }
 
         [HttpPut]
@@ -69,7 +69,7 @@ namespace Iroh.Controllers
         {
             // Kayıt yoksa servis NotFoundException atar → handler 404.
             var updated = await _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
-            return Ok(ApiResponse.Ok(updated, "Başarılı"));
+            return Ok(ApiResponse.Ok(BookingDto.From(updated), "Başarılı"));
         }
     }
 }

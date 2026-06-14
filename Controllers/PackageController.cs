@@ -1,3 +1,4 @@
+using Iroh.Models.DTOs.Package;
 using Iroh.Models.Entities;
 using Iroh.Models.Responses;
 using Iroh.Services;
@@ -22,22 +23,37 @@ namespace Iroh.Controllers
         public async Task<IActionResult> GetAll()
         {
             var result = await _packageService.GetAll();
-            return Ok(ApiResponse.Ok(result, "Başarılı"));
+            return Ok(ApiResponse.Ok(result.Select(PackageDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(Package package)
+        public async Task<IActionResult> Create(PackageCreateDto dto)
         {
+            var package = new Package
+            {
+                name = dto.name,
+                hours = dto.hours,
+                price = dto.price,
+                validityDays = dto.validityDays
+            };
             var result = await _packageService.Create(package);
-            return Ok(ApiResponse.Ok(result, "Paket başarıyla oluşturuldu"));
+            return Ok(ApiResponse.Ok(PackageDto.From(result), "Paket başarıyla oluşturuldu"));
         }
 
         [HttpPut]
-        public async Task<IActionResult> Update(Package package)
+        public async Task<IActionResult> Update(PackageUpdateDto dto)
         {
+            var package = new Package
+            {
+                id = dto.id,
+                name = dto.name,
+                hours = dto.hours,
+                price = dto.price,
+                validityDays = dto.validityDays
+            };
             // Bulunamazsa servis NotFoundException atar → handler 404.
             await _packageService.Update(package);
-            return Ok(ApiResponse.Ok<object?>(null, "Paket başarıyla güncellendi"));
+            return Ok(ApiResponse.Ok(PackageDto.From(package), "Paket başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
