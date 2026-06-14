@@ -31,10 +31,10 @@ namespace Iroh.Controllers
         {
             var package = new Package
             {
-                name = dto.name,
-                hours = dto.hours,
-                price = dto.price,
-                validityDays = dto.validityDays
+                Name = dto.Name,
+                Hours = dto.Hours,
+                Price = dto.Price,
+                ValidityDays = dto.ValidityDays
             };
             var result = await _packageService.Create(package);
             return Ok(ApiResponse.Ok(PackageDto.From(result), "Paket başarıyla oluşturuldu"));
@@ -45,11 +45,11 @@ namespace Iroh.Controllers
         {
             var package = new Package
             {
-                id = dto.id,
-                name = dto.name,
-                hours = dto.hours,
-                price = dto.price,
-                validityDays = dto.validityDays
+                Id = dto.Id,
+                Name = dto.Name,
+                Hours = dto.Hours,
+                Price = dto.Price,
+                ValidityDays = dto.ValidityDays
             };
             // Bulunamazsa servis NotFoundException atar → handler 404.
             await _packageService.Update(package);

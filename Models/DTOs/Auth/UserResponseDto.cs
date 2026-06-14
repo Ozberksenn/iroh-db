@@ -3,11 +3,11 @@ namespace Iroh.Models.DTOs.Auth
     // Register yanıtı — User entity'si (şifre hash dahil) asla serialize edilmez.
     public class UserResponseDto
     {
-        public int id { get; set; }
-        public required string name { get; set; }
-        public string? lastname { get; set; }
-        public string? mail { get; set; }
-        public string? phone { get; set; }
-        public bool isActive { get; set; }
+        public int Id { get; set; }
+        public required string Name { get; set; }
+        public string? LastName { get; set; }
+        public string? Mail { get; set; }
+        public string? Phone { get; set; }
+        public bool IsActive { get; set; }
     }
 }

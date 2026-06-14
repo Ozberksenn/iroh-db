@@ -7,35 +7,38 @@ namespace Iroh.Models.Entities
     public class Booking : BaseEntity
     {
         [Column("tableid")]
-        public int? tableId { get; set; }
+        public int? TableId { get; set; }
 
-        [ForeignKey("tableId")]
-        public Table? table { get; set; }
+        [ForeignKey("TableId")]
+        public Table? Table { get; set; }
 
         [Column("starttime")]
-        public DateTime? startTime { get; set; }
+        public DateTime? StartTime { get; set; }
 
         [Column("endtime")]
-        public DateTime? endTime { get; set; }
+        public DateTime? EndTime { get; set; }
 
-        public BookingStatus status { get; set; }
+        [Column("status")]
+        public BookingStatus Status { get; set; }
 
-        public decimal? price { get; set; }
+        [Column("price")]
+        public decimal? Price { get; set; }
 
-        public string? note { get; set; }
+        [Column("note")]
+        public string? Note { get; set; }
 
         [Column("subscriptionstarttime")]
-        public DateTime? subscriptionStartTime { get; set; }
+        public DateTime? SubscriptionStartTime { get; set; }
 
         [Column("subscriptionendtime")]
-        public DateTime? subscriptionEndTime { get; set; }
+        public DateTime? SubscriptionEndTime { get; set; }
 
         [Column("child_id")]
-        public int? childId { get; set; }
+        public int? ChildId { get; set; }
 
-        [ForeignKey("childId")]
-        public Child? child { get; set; }
+        [ForeignKey("ChildId")]
+        public Child? Child { get; set; }
 
-        public ICollection<BookingLog> logs { get; set; } = new List<BookingLog>();
+        public ICollection<BookingLog> Logs { get; set; } = new List<BookingLog>();
     }
 }

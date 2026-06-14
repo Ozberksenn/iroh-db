@@ -6,15 +6,15 @@ namespace Iroh.Models.Entities
     public class PurchaseBooking : BaseEntity
     {
         [Column("bookingid")]
-        public int bookingId { get; set; }
+        public int BookingId { get; set; }
 
-        [ForeignKey("bookingId")]
-        public Booking? booking { get; set; }
+        [ForeignKey("BookingId")]
+        public Booking? Booking { get; set; }
 
         [Column("purchaseid")]
-        public int purchaseId { get; set; }
+        public int PurchaseId { get; set; }
 
-        [ForeignKey("purchaseId")]
-        public Purchase? purchase { get; set; }
+        [ForeignKey("PurchaseId")]
+        public Purchase? Purchase { get; set; }
     }
 }

@@ -6,9 +6,10 @@ namespace Iroh.Models.Entities
     [Table("tables", Schema = "public")]
     public class Table : BaseEntity
     {
-        public required string name { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
 
         [Column("isdeleted")]
-        public bool isDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
     }
 }

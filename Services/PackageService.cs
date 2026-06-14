@@ -25,21 +25,21 @@ namespace Iroh.Services
         public async Task<List<Package>> GetAll()
         {
             return await _context.Packages
-                .Where(p => !p.isDeleted)
-                .OrderByDescending(p => p.createdAt)
+                .Where(p => !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
         }
 
         public async Task<Package?> GetById(int id)
         {
-            return await _context.Packages.FirstOrDefaultAsync(p => p.id == id && !p.isDeleted);
+            return await _context.Packages.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
         }
 
         public async Task<Package> Create(Package package)
         {
-            package.createdAt = DateTime.Now;
-            package.updatedAt = DateTime.Now;
-            package.isDeleted = false;
+            package.CreatedAt = DateTime.Now;
+            package.UpdatedAt = DateTime.Now;
+            package.IsDeleted = false;
 
             _context.Packages.Add(package);
             await _context.SaveChangesAsync();
@@ -48,17 +48,17 @@ namespace Iroh.Services
 
         public async Task Update(Package package)
         {
-            var existing = await _context.Packages.FirstOrDefaultAsync(p => p.id == package.id && !p.isDeleted);
+            var existing = await _context.Packages.FirstOrDefaultAsync(p => p.Id == package.Id && !p.IsDeleted);
             if (existing == null)
             {
                 throw new NotFoundException("Paket bulunamadı veya silinmiş!");
             }
 
-            existing.name = package.name;
-            existing.hours = package.hours;
-            existing.price = package.price;
-            existing.validityDays = package.validityDays;
-            existing.updatedAt = DateTime.Now;
+            existing.Name = package.Name;
+            existing.Hours = package.Hours;
+            existing.Price = package.Price;
+            existing.ValidityDays = package.ValidityDays;
+            existing.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
         }
@@ -71,8 +71,8 @@ namespace Iroh.Services
                 throw new NotFoundException("Paket bulunamadı!");
             }
 
-            package.isDeleted = true;
-            package.updatedAt = DateTime.Now;
+            package.IsDeleted = true;
+            package.UpdatedAt = DateTime.Now;
             await _context.SaveChangesAsync();
         }
     }

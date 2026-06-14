@@ -29,7 +29,7 @@ namespace Iroh.Controllers
         public async Task<IActionResult> Create(int parentId, [FromBody] ChildCreateDto dto)
         {
             // Sistem misafiri → servis BusinessRuleException atar → handler 400.
-            var child = await _childService.CreateChild(parentId, dto.name, dto.birthDate);
+            var child = await _childService.CreateChild(parentId, dto.Name, dto.BirthDate);
             return Ok(ApiResponse.Ok(ChildDto.From(child!), "Çocuk başarıyla oluşturuldu"));
         }
 
@@ -43,7 +43,7 @@ namespace Iroh.Controllers
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] ChildUpdateDto dto)
         {
-            await _childService.UpdateChild(dto.id, dto.name, dto.birthDate);
+            await _childService.UpdateChild(dto.Id, dto.Name, dto.BirthDate);
             return Ok(ApiResponse.Ok<object?>(null, "Çocuk başarıyla güncellendi"));
         }
 

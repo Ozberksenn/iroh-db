@@ -2,61 +2,61 @@ namespace Iroh.Models.DTOs.Dashboard
 {
     public class DashboardResponseDto
     {
-        public DashboardOverviewDto overview { get; set; } = new();
-        public List<TopCustomerDto> topCustomers { get; set; } = new();
-        public List<DailyBookingDto> dailyList { get; set; } = new();
-        public List<RevenueChartDto> revenueChart { get; set; } = new();
-        public List<BusyHourDto> busyHoursChart { get; set; } = new();
+        public DashboardOverviewDto Overview { get; set; } = new();
+        public List<TopCustomerDto> TopCustomers { get; set; } = new();
+        public List<DailyBookingDto> DailyList { get; set; } = new();
+        public List<RevenueChartDto> RevenueChart { get; set; } = new();
+        public List<BusyHourDto> BusyHoursChart { get; set; } = new();
     }
 
     public class DashboardOverviewDto
     {
-        public int totalBookings { get; set; }
-        public int activeCurrently { get; set; }
-        public decimal totalRevenue { get; set; }
-        public decimal bookingRevenue { get; set; }
-        public decimal purchaseRevenue { get; set; }
-        public int averageDurationMinutes { get; set; }
-        public int cancelationRate { get; set; }
-        public int purchaseCount { get; set; }
-        public int subscriptionSessions { get; set; }
+        public int TotalBookings { get; set; }
+        public int ActiveCurrently { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public decimal BookingRevenue { get; set; }
+        public decimal PurchaseRevenue { get; set; }
+        public int AverageDurationMinutes { get; set; }
+        public int CancelationRate { get; set; }
+        public int PurchaseCount { get; set; }
+        public int SubscriptionSessions { get; set; }
     }
 
     public class TopCustomerDto
     {
-        public int? id { get; set; }
-        public string name { get; set; } = string.Empty;
-        public int visitCount { get; set; }
-        public int purchaseCount { get; set; }
-        public decimal bookingSpent { get; set; }
-        public decimal purchaseSpent { get; set; }
-        public decimal totalSpent { get; set; }
+        public int? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int VisitCount { get; set; }
+        public int PurchaseCount { get; set; }
+        public decimal BookingSpent { get; set; }
+        public decimal PurchaseSpent { get; set; }
+        public decimal TotalSpent { get; set; }
     }
 
     public class DailyBookingDto
     {
-        public int bookingId { get; set; }
-        public string name { get; set; } = string.Empty;
-        public string lastname { get; set; } = string.Empty;
-        public string parentname { get; set; } = string.Empty;
-        public int? parentId { get; set; }
-        public DateTime? checkIn { get; set; }
-        public DateTime? checkOut { get; set; }
-        public string status { get; set; } = string.Empty;
-        public decimal? price { get; set; }
-        public bool isSubscription { get; set; }
+        public int BookingId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Parentname { get; set; } = string.Empty;
+        public int? ParentId { get; set; }
+        public DateTime? CheckIn { get; set; }
+        public DateTime? CheckOut { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public decimal? Price { get; set; }
+        public bool IsSubscription { get; set; }
     }
 
     public class RevenueChartDto
     {
-        public string date { get; set; } = string.Empty;
-        public decimal bookingRevenue { get; set; }
-        public decimal purchaseRevenue { get; set; }
+        public string Date { get; set; } = string.Empty;
+        public decimal BookingRevenue { get; set; }
+        public decimal PurchaseRevenue { get; set; }
     }
 
     public class BusyHourDto
     {
-        public string hour { get; set; } = string.Empty;
-        public int count { get; set; }
+        public string Hour { get; set; } = string.Empty;
+        public int Count { get; set; }
     }
 }

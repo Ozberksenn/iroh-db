@@ -6,12 +6,12 @@ namespace Iroh.Models.DTOs.Booking
 {
     public class BookingCreateDto
     {
-        public int? tableId { get; set; }
-        public DateTime? startTime { get; set; }
-        public DateTime? endTime { get; set; }
-        public required BookingStatus status { get; set; }
-        public decimal? price { get; set; }
-        public int? childId { get; set; }
-        public string? note { get; set; }
+        public int? TableId { get; set; }
+        public DateTime? StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public required BookingStatus Status { get; set; }
+        public decimal? Price { get; set; }
+        public int? ChildId { get; set; }
+        public string? Note { get; set; }
     }
 }

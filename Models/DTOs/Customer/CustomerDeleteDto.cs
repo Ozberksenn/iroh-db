@@ -8,7 +8,7 @@ namespace Iroh.Models.DTOs.Customer
     {
 
         [Required]
-        public required Boolean isDeleted { get; set; }
+        public required Boolean IsDeleted { get; set; }
 
 
     }

@@ -32,9 +32,9 @@ namespace Iroh.Controllers
         {
             var purchasePayment = new PurchasePayment
             {
-                hours = dto.hours,
-                price = dto.price,
-                purchaseId = dto.purchaseId
+                Hours = dto.Hours,
+                Price = dto.Price,
+                PurchaseId = dto.PurchaseId
             };
             var created = await _purchasePaymentService.Create(purchasePayment);
             return Ok(ApiResponse.Ok(PaymentDto.From(created), "Başarıyla oluşturuldu"));

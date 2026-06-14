@@ -30,9 +30,9 @@ namespace Iroh.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(TableCreateDto tableCreateDto)
         {
-            var table = new Table { name = tableCreateDto.name };
+            var table = new Table { Name = tableCreateDto.Name };
             var createdTable = await _tableService.Create(table);
-            return Ok(ApiResponse.Ok(new TableDto { id = createdTable.id, name = createdTable.name }, "Masa başarıyla oluşturuldu"));
+            return Ok(ApiResponse.Ok(new TableDto { Id = createdTable.Id, Name = createdTable.Name }, "Masa başarıyla oluşturuldu"));
         }
 
         [HttpPut]
@@ -40,7 +40,7 @@ namespace Iroh.Controllers
         {
             // Kayıt yoksa servis NotFoundException atar → handler 404.
             var updatedTable = await _tableService.Update(tableUpdateDto);
-            return Ok(ApiResponse.Ok(new TableDto { id = updatedTable.id, name = updatedTable.name }, "Masa başarıyla güncellendi"));
+            return Ok(ApiResponse.Ok(new TableDto { Id = updatedTable.Id, Name = updatedTable.Name }, "Masa başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]

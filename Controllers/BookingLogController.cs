@@ -32,10 +32,10 @@ namespace Iroh.Controllers
         {
             var bookingLog = new BookingLog
             {
-                bookingId = dto.bookingId,
-                time = dto.time,
-                type = dto.type,
-                userId = dto.userId
+                BookingId = dto.BookingId,
+                Time = dto.Time,
+                Type = dto.Type,
+                UserId = dto.UserId
             };
             var result = await _bookingLogService.Create(bookingLog);
             return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Oluşturuldu."));

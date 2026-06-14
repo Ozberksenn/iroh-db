@@ -52,13 +52,13 @@ namespace Iroh.Controllers
         {
             var booking = new Booking
             {
-                tableId = bookingCreateDto.tableId,
-                startTime = bookingCreateDto.startTime,
-                endTime = bookingCreateDto.endTime,
-                status = bookingCreateDto.status,
-                price = bookingCreateDto.price,
-                childId = bookingCreateDto.childId,
-                note = bookingCreateDto.note
+                TableId = bookingCreateDto.TableId,
+                StartTime = bookingCreateDto.StartTime,
+                EndTime = bookingCreateDto.EndTime,
+                Status = bookingCreateDto.Status,
+                Price = bookingCreateDto.Price,
+                ChildId = bookingCreateDto.ChildId,
+                Note = bookingCreateDto.Note
             };
             var createdBooking = await _bookingService.Create(booking);
             return Ok(ApiResponse.Ok(BookingDto.From(createdBooking), "Başarılı"));
@@ -68,7 +68,7 @@ namespace Iroh.Controllers
         public async Task<IActionResult> Update(BookingUpdateDto bookingUpdateDto)
         {
             // Kayıt yoksa servis NotFoundException atar → handler 404.
-            var updated = await _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
+            var updated = await _bookingService.Update(bookingUpdateDto.Id, bookingUpdateDto);
             return Ok(ApiResponse.Ok(BookingDto.From(updated), "Başarılı"));
         }
     }

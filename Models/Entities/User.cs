@@ -5,20 +5,22 @@ namespace Iroh.Models.Entities
     [Table("users", Schema = "public")]
     public class User : BaseEntity
     {
-
-        public required string name { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
 
         [Column("lastname")]
-        public string? lastname { get; set; }
+        public string? LastName { get; set; }
 
-        public required string password { get; set; }
+        [Column("password")]
+        public required string Password { get; set; }
 
-        public string? phone { get; set; }
+        [Column("phone")]
+        public string? Phone { get; set; }
 
-        public required string mail { get; set; }
+        [Column("mail")]
+        public required string Mail { get; set; }
 
         [Column("isactive")]
-        public required bool isActive { get; set; } = true;
-
+        public required bool IsActive { get; set; } = true;
     }
 }

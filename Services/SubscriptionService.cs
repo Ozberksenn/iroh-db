@@ -40,23 +40,23 @@ namespace Iroh.Services
             var result = new Dictionary<int, ParentSubscription>();
             if (parentIds.Count == 0) return result;
 
-            var purchases = await _context.Purchases.AsNoTracking().Where(p => parentIds.Contains(p.customerId)).ToListAsync();
-            var purchaseIds = purchases.Select(p => p.id).ToList();
-            var payments = await _context.PurchasePayments.AsNoTracking().Where(pp => purchaseIds.Contains(pp.purchaseId)).ToListAsync();
+            var purchases = await _context.Purchases.AsNoTracking().Where(p => parentIds.Contains(p.CustomerId)).ToListAsync();
+            var purchaseIds = purchases.Select(p => p.Id).ToList();
+            var payments = await _context.PurchasePayments.AsNoTracking().Where(pp => purchaseIds.Contains(pp.PurchaseId)).ToListAsync();
             var linked = await _context.PurchaseBookings
-                .Where(pb => purchaseIds.Contains(pb.purchaseId))
-                .Join(_context.Bookings, pb => pb.bookingId, b => b.id,
-                      (pb, b) => new { pb.purchaseId, b.subscriptionStartTime, b.subscriptionEndTime })
+                .Where(pb => purchaseIds.Contains(pb.PurchaseId))
+                .Join(_context.Bookings, pb => pb.BookingId, b => b.Id,
+                      (pb, b) => new { pb.PurchaseId, b.SubscriptionStartTime, b.SubscriptionEndTime })
                 .ToListAsync();
 
             // fn_get_used_hours: Σ(subEnd - subStart) dakika cinsinden.
             double UsedMinutesFor(int pid) => linked
-                .Where(x => x.purchaseId == pid && x.subscriptionStartTime.HasValue && x.subscriptionEndTime.HasValue)
-                .Sum(x => (x.subscriptionEndTime!.Value - x.subscriptionStartTime!.Value).TotalMinutes);
+                .Where(x => x.PurchaseId == pid && x.SubscriptionStartTime.HasValue && x.SubscriptionEndTime.HasValue)
+                .Sum(x => (x.SubscriptionEndTime!.Value - x.SubscriptionStartTime!.Value).TotalMinutes);
 
             foreach (var pid in parentIds)
             {
-                var cust = purchases.Where(p => p.customerId == pid).ToList();
+                var cust = purchases.Where(p => p.CustomerId == pid).ToList();
                 if (cust.Count == 0)
                 {
                     result[pid] = new ParentSubscription();
@@ -65,10 +65,10 @@ namespace Iroh.Services
 
                 var evals = cust.Select(p =>
                 {
-                    var payHours = payments.Where(pp => pp.purchaseId == p.id).Sum(pp => (double)pp.hours);
-                    var used = UsedMinutesFor(p.id);
-                    var totalMin = ((double)p.hours + payHours) * 60.0;
-                    var isValid = p.startDate.HasValue && p.endDate.HasValue && p.startDate.Value <= now && p.endDate.Value >= now;
+                    var payHours = payments.Where(pp => pp.PurchaseId == p.Id).Sum(pp => (double)pp.Hours);
+                    var used = UsedMinutesFor(p.Id);
+                    var totalMin = ((double)p.Hours + payHours) * 60.0;
+                    var isValid = p.StartDate.HasValue && p.EndDate.HasValue && p.StartDate.Value <= now && p.EndDate.Value >= now;
                     return new { p, used, rem = totalMin - used, isValid };
                 }).ToList();
 
@@ -76,7 +76,7 @@ namespace Iroh.Services
                 var best = evals
                     .OrderByDescending(e => e.isValid)
                     .ThenByDescending(e => e.rem > 0)
-                    .ThenByDescending(e => e.p.endDate ?? DateTime.MinValue)
+                    .ThenByDescending(e => e.p.EndDate ?? DateTime.MinValue)
                     .First();
 
                 result[pid] = new ParentSubscription
@@ -85,8 +85,8 @@ namespace Iroh.Services
                     BestRemainingMinutes = best.rem,
                     BestIsDateValid = best.isValid,
                     BestUsedMinutes = best.used,
-                    BestPayments = payments.Where(pp => pp.purchaseId == best.p.id).ToList(),
-                    HasUpcoming = cust.Any(p => p.startDate.HasValue && p.startDate.Value > now),
+                    BestPayments = payments.Where(pp => pp.PurchaseId == best.p.Id).ToList(),
+                    HasUpcoming = cust.Any(p => p.StartDate.HasValue && p.StartDate.Value > now),
                     HasAny = true
                 };
             }
@@ -99,18 +99,18 @@ namespace Iroh.Services
         {
             var bookings = await _context.Bookings
                 .AsNoTracking()
-                .Include(b => b.table)
-                .Include(b => b.child).ThenInclude(ch => ch.parent)
-                .Include(b => b.logs)
-                .Where(b => (b.status == BookingStatus.Active || b.status == BookingStatus.Paused)
-                         && (b.child == null || !b.child.isDeleted)
-                         && (b.child == null || b.child.parent == null || !b.child.parent.isDeleted))
-                .OrderBy(b => b.id)
+                .Include(b => b.Table)
+                .Include(b => b.Child).ThenInclude(ch => ch.Parent)
+                .Include(b => b.Logs)
+                .Where(b => (b.Status == BookingStatus.Active || b.Status == BookingStatus.Paused)
+                         && (b.Child == null || !b.Child.IsDeleted)
+                         && (b.Child == null || b.Child.Parent == null || !b.Child.Parent.IsDeleted))
+                .OrderBy(b => b.Id)
                 .ToListAsync();
 
             var parentIds = bookings
-                .Where(b => b.child != null && b.child.parent != null)
-                .Select(b => b.child!.parent!.id)
+                .Where(b => b.Child != null && b.Child.Parent != null)
+                .Select(b => b.Child!.Parent!.Id)
                 .Distinct()
                 .ToList();
 
@@ -119,12 +119,12 @@ namespace Iroh.Services
             return bookings.Select(b =>
             {
                 ActiveBookingCustomerDto? customer = null;
-                if (b.child != null)
+                if (b.Child != null)
                 {
-                    var parent = b.child.parent;
+                    var parent = b.Child.Parent;
                     var tier = "Customer";
                     PurchaseInfoDto? pinfo = null;
-                    if (parent != null && subs.TryGetValue(parent.id, out var sub))
+                    if (parent != null && subs.TryGetValue(parent.Id, out var sub))
                     {
                         // active-bookings kademesi (5'li): Subscriber dahil.
                         tier = (sub.BestIsDateValid && sub.BestRemainingMinutes > 0) ? "ActiveSubscriber"
@@ -137,47 +137,47 @@ namespace Iroh.Services
                         {
                             pinfo = new PurchaseInfoDto
                             {
-                                id = sub.BestPurchase.id,
-                                hours = sub.BestPurchase.hours,
-                                price = sub.BestPurchase.price,
-                                startDate = sub.BestPurchase.startDate,
-                                endDate = sub.BestPurchase.endDate,
-                                customerId = sub.BestPurchase.customerId,
-                                usedMinutes = sub.BestUsedMinutes,
-                                payments = sub.BestPayments
-                                    .Select(pp => new PaymentDto { id = pp.id, purchaseId = pp.purchaseId, hours = pp.hours, price = pp.price })
+                                Id = sub.BestPurchase.Id,
+                                Hours = sub.BestPurchase.Hours,
+                                Price = sub.BestPurchase.Price,
+                                StartDate = sub.BestPurchase.StartDate,
+                                EndDate = sub.BestPurchase.EndDate,
+                                CustomerId = sub.BestPurchase.CustomerId,
+                                UsedMinutes = sub.BestUsedMinutes,
+                                Payments = sub.BestPayments
+                                    .Select(pp => new PaymentDto { Id = pp.Id, PurchaseId = pp.PurchaseId, Hours = pp.Hours, Price = pp.Price })
                                     .ToList()
                             };
                         }
                     }
                     customer = new ActiveBookingCustomerDto
                     {
-                        childId = b.child.id,
-                        name = b.child.name,
-                        parentId = parent?.id,
-                        parentName = parent?.name,
-                        parentLastName = parent?.lastName,
-                        phone = parent?.phone,
-                        status = tier,
-                        purchase = pinfo
+                        ChildId = b.Child.Id,
+                        Name = b.Child.Name,
+                        ParentId = parent?.Id,
+                        ParentName = parent?.Name,
+                        ParentLastName = parent?.LastName,
+                        Phone = parent?.Phone,
+                        Status = tier,
+                        Purchase = pinfo
                     };
                 }
 
                 return new ActiveBookingDto
                 {
-                    id = b.id,
-                    table = b.tableId != null ? new BookingTableDto { id = b.table?.id, name = b.table?.name } : null,
-                    customer = customer,
-                    price = b.price,
-                    startTime = b.startTime,
-                    endTime = b.endTime,
-                    subscriptionStartTime = b.subscriptionStartTime,
-                    subscriptionEndTime = b.subscriptionEndTime,
-                    status = b.status.ToString(),
-                    note = b.note,
-                    logs = b.logs
-                        .OrderBy(l => l.id)
-                        .Select(l => new BookingLogDto { id = l.id, bookingId = l.bookingId, time = l.time, type = l.type.ToString(), userId = l.userId })
+                    Id = b.Id,
+                    Table = b.TableId != null ? new BookingTableDto { Id = b.Table?.Id, Name = b.Table?.Name } : null,
+                    Customer = customer,
+                    Price = b.Price,
+                    StartTime = b.StartTime,
+                    EndTime = b.EndTime,
+                    SubscriptionStartTime = b.SubscriptionStartTime,
+                    SubscriptionEndTime = b.SubscriptionEndTime,
+                    Status = b.Status.ToString(),
+                    Note = b.Note,
+                    Logs = b.Logs
+                        .OrderBy(l => l.Id)
+                        .Select(l => new BookingLogDto { Id = l.Id, BookingId = l.BookingId, Time = l.Time, Type = l.Type.ToString(), UserId = l.UserId })
                         .ToList()
                 };
             }).ToList();

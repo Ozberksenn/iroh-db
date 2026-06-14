@@ -29,27 +29,27 @@ namespace Iroh.Services
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
         public async Task<Customer?> GetById(int id) =>
-            await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+            await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         // Update/Delete'in iç kullanımı — soft-delete filtresi uygulamaz.
         public async Task<Customer?> GetCustomerById(int id) =>
-            await _context.Customers.FirstOrDefaultAsync(c => c.id == id);
+            await _context.Customers.FirstOrDefaultAsync(c => c.Id == id);
 
         // fn_get_customers paritesi: hesaplanmış abone statüsü + serbest metin arama + sayfalama.
         public async Task<PagedResult<CustomerListItemDto>> GetCustomers(string? status, int page, int size, string? name)
         {
             var now = DateTime.UtcNow;
 
-            var query = _context.Customers.Where(c => !c.isDeleted && c.id != SystemGuestId);
+            var query = _context.Customers.Where(c => !c.IsDeleted && c.Id != SystemGuestId);
 
             if (!string.IsNullOrWhiteSpace(name))
             {
                 var pattern = $"%{name}%";
                 query = query.Where(c =>
                     EF.Functions.ILike(
-                        c.name + " " + (c.lastName ?? "") + " " + (c.phone ?? "") + " " + (c.mail ?? ""),
+                        c.Name + " " + (c.LastName ?? "") + " " + (c.Phone ?? "") + " " + (c.Mail ?? ""),
                         pattern)
-                    || _context.Children.Any(ch => ch.parentId == c.id && EF.Functions.ILike(ch.name, pattern)));
+                    || _context.Children.Any(ch => ch.ParentId == c.Id && EF.Functions.ILike(ch.Name, pattern)));
             }
 
             if (!string.IsNullOrWhiteSpace(status))
@@ -57,18 +57,18 @@ namespace Iroh.Services
                 query = status switch
                 {
                     "ActiveSubscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
+                        _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
                     "Subscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.customerId == c.id)
-                        && !_context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
-                    "Customer" => query.Where(c => !_context.Purchases.Any(p => p.customerId == c.id)),
+                        _context.Purchases.Any(p => p.CustomerId == c.Id)
+                        && !_context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
+                    "Customer" => query.Where(c => !_context.Purchases.Any(p => p.CustomerId == c.Id)),
                     _ => query
                 };
             }
 
             var totalSize = await query.CountAsync();
 
-            IQueryable<Customer> ordered = query.OrderBy(c => c.id);
+            IQueryable<Customer> ordered = query.OrderBy(c => c.Id);
             if (page != -1)
             {
                 ordered = ordered.Skip((page - 1) * size).Take(size);
@@ -76,25 +76,25 @@ namespace Iroh.Services
 
             var items = await ordered.Select(c => new CustomerListItemDto
             {
-                id = c.id,
-                name = c.name,
-                lastName = c.lastName,
-                phone = c.phone,
-                mail = c.mail,
-                status = _context.Purchases.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)
+                Id = c.Id,
+                Name = c.Name,
+                LastName = c.LastName,
+                Phone = c.Phone,
+                Mail = c.Mail,
+                Status = _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)
                     ? "ActiveSubscriber"
-                    : _context.Purchases.Any(p => p.customerId == c.id)
+                    : _context.Purchases.Any(p => p.CustomerId == c.Id)
                         ? "Subscriber"
                         : "Customer"
             }).ToListAsync();
 
             return new PagedResult<CustomerListItemDto>
             {
-                items = items,
-                page = page,
-                size = size,
-                totalSize = totalSize,
-                totalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
+                Items = items,
+                Page = page,
+                Size = size,
+                TotalSize = totalSize,
+                TotalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
             };
         }
 
@@ -107,20 +107,20 @@ namespace Iroh.Services
 
         public async Task<Customer> Update(CustomerUpdateDto dto)
         {
-            var customer = await GetCustomerById(dto.id)
+            var customer = await GetCustomerById(dto.Id)
                 ?? throw new NotFoundException("Müşteri bulunamadı");
 
-            if (customer.id == SystemGuestId)
+            if (customer.Id == SystemGuestId)
             {
                 throw new BusinessRuleException("Sistem Misafiri kaydı değiştirilemez!");
             }
 
-            customer.name = dto.name;
-            customer.lastName = dto.lastName;
-            customer.phone = dto.phone;
-            customer.mail = dto.mail;
+            customer.Name = dto.Name;
+            customer.LastName = dto.LastName;
+            customer.Phone = dto.Phone;
+            customer.Mail = dto.Mail;
 
-            customer.updatedAt = DateTime.UtcNow;
+            customer.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return customer;
         }
@@ -130,15 +130,15 @@ namespace Iroh.Services
             var customer = await GetCustomerById(id)
                 ?? throw new NotFoundException("Müşteri bulunamadı");
 
-            if (customer.id == SystemGuestId)
+            if (customer.Id == SystemGuestId)
             {
                 throw new BusinessRuleException("Sistem Misafiri kaydı silinemez!");
             }
 
             // Aktif/Beklemede oturumu olan bir çocuk varsa engelle.
             var hasActiveBooking = await _context.Bookings
-                .AnyAsync(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
-                          && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
+                .AnyAsync(b => _context.Children.Any(ch => ch.ParentId == customer.Id && ch.Id == b.ChildId)
+                          && (b.Status == BookingStatus.Active || b.Status == BookingStatus.Paused));
 
             if (hasActiveBooking)
             {
@@ -146,15 +146,15 @@ namespace Iroh.Services
             }
 
             // Çocukları cascade soft-delete.
-            var children = await _context.Children.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToListAsync();
+            var children = await _context.Children.Where(ch => ch.ParentId == customer.Id && !ch.IsDeleted).ToListAsync();
             foreach (var child in children)
             {
-                child.isDeleted = true;
-                child.updatedAt = DateTime.UtcNow;
+                child.IsDeleted = true;
+                child.UpdatedAt = DateTime.UtcNow;
             }
 
-            customer.isDeleted = true;
-            customer.updatedAt = DateTime.UtcNow;
+            customer.IsDeleted = true;
+            customer.UpdatedAt = DateTime.UtcNow;
 
             _context.Customers.Update(customer);
             await _context.SaveChangesAsync();

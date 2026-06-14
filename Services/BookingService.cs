@@ -37,12 +37,12 @@ namespace Iroh.Services
             {
                 var pattern = $"%{name}%";
                 query = query.Where(b => EF.Functions.ILike(
-                    (b.child != null ? b.child.name : "") + " " +
-                    (b.child != null && b.child.parent != null ? b.child.parent.name : "") + " " +
-                    (b.child != null && b.child.parent != null ? (b.child.parent.lastName ?? "") : "") + " " +
-                    (b.child != null && b.child.parent != null ? (b.child.parent.phone ?? "") : "") + " " +
-                    (b.table != null ? (b.table.name ?? "") : "") + " " +
-                    (b.note ?? ""),
+                    (b.Child != null ? b.Child.Name : "") + " " +
+                    (b.Child != null && b.Child.Parent != null ? b.Child.Parent.Name : "") + " " +
+                    (b.Child != null && b.Child.Parent != null ? (b.Child.Parent.LastName ?? "") : "") + " " +
+                    (b.Child != null && b.Child.Parent != null ? (b.Child.Parent.Phone ?? "") : "") + " " +
+                    (b.Table != null ? (b.Table.Name ?? "") : "") + " " +
+                    (b.Note ?? ""),
                     pattern));
             }
 
@@ -55,70 +55,70 @@ namespace Iroh.Services
                     .ToList();
                 if (statusEnums.Count > 0)
                 {
-                    query = query.Where(b => statusEnums.Contains(b.status));
+                    query = query.Where(b => statusEnums.Contains(b.Status));
                 }
             }
 
             if (customerId.HasValue)
-                query = query.Where(b => b.child != null && b.child.parentId == customerId.Value);
+                query = query.Where(b => b.Child != null && b.Child.ParentId == customerId.Value);
             if (childId.HasValue)
-                query = query.Where(b => b.childId == childId.Value);
+                query = query.Where(b => b.ChildId == childId.Value);
             if (startTime.HasValue)
-                query = query.Where(b => b.startTime >= startTime.Value);
+                query = query.Where(b => b.StartTime >= startTime.Value);
             if (endTime.HasValue)
-                query = query.Where(b => b.startTime <= endTime.Value);
+                query = query.Where(b => b.StartTime <= endTime.Value);
             if (tableId.HasValue)
-                query = query.Where(b => b.tableId == tableId.Value);
+                query = query.Where(b => b.TableId == tableId.Value);
 
             var totalSize = await query.CountAsync();
 
-            IQueryable<Booking> ordered = query.OrderByDescending(b => b.id);
+            IQueryable<Booking> ordered = query.OrderByDescending(b => b.Id);
             if (page != -1)
                 ordered = ordered.Skip((page - 1) * size).Take(size);
 
             var items = await ordered.Select(b => new BookingListItemDto
             {
-                id = b.id,
-                table = b.tableId != null
-                    ? new BookingTableDto { id = b.table!.id, name = b.table.name }
+                Id = b.Id,
+                Table = b.TableId != null
+                    ? new BookingTableDto { Id = b.Table!.Id, Name = b.Table.Name }
                     : null,
-                customer = b.childId != null
+                Customer = b.ChildId != null
                     ? new BookingCustomerDto
                     {
-                        childId = b.child!.id,
-                        name = b.child.name,
-                        parentId = b.child.parent != null ? b.child.parent.id : (int?)null,
-                        parentName = b.child.parent != null ? b.child.parent.name : null,
-                        parentLastName = b.child.parent != null ? b.child.parent.lastName : null,
-                        phone = b.child.parent != null ? b.child.parent.phone : null
+                        ChildId = b.Child!.Id,
+                        Name = b.Child.Name,
+                        ParentId = b.Child.Parent != null ? b.Child.Parent.Id : (int?)null,
+                        ParentName = b.Child.Parent != null ? b.Child.Parent.Name : null,
+                        ParentLastName = b.Child.Parent != null ? b.Child.Parent.LastName : null,
+                        Phone = b.Child.Parent != null ? b.Child.Parent.Phone : null
                     }
                     : null,
-                price = b.price,
-                startTime = b.startTime,
-                endTime = b.endTime,
-                subscriptionStartTime = b.subscriptionStartTime,
-                subscriptionEndTime = b.subscriptionEndTime,
-                status = b.status.ToString(),
-                note = b.note
+                Price = b.Price,
+                StartTime = b.StartTime,
+                EndTime = b.EndTime,
+                SubscriptionStartTime = b.SubscriptionStartTime,
+                SubscriptionEndTime = b.SubscriptionEndTime,
+                Status = b.Status.ToString(),
+                Note = b.Note
             }).ToListAsync();
 
             return new PagedResult<BookingListItemDto>
             {
-                items = items,
-                page = page,
-                size = size,
-                totalSize = totalSize,
-                totalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
+                Items = items,
+                Page = page,
+                Size = size,
+                TotalSize = totalSize,
+                TotalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
             };
         }
 
         public async Task<Booking?> GetById(int id) =>
             await _context.Bookings
                 .AsNoTracking()
-                .Include(b => b.table)
-                .Include(b => b.child)
-                    .ThenInclude(c => c.parent)
-                .FirstOrDefaultAsync(b => b.id == id);
+                .Include(b => b.Table)
+                .Include(b => b.Child)
+                    .ThenInclude(c => c.Parent)
+                .FirstOrDefaultAsync(b => b.Id == id);
 
         public async Task<Booking> Create(Booking booking)
         {
@@ -135,26 +135,26 @@ namespace Iroh.Services
                 throw new NotFoundException("Kayıt bulunamadı");
             }
 
-            existingBooking.tableId = updatedBooking.tableId ?? existingBooking.tableId;
-            existingBooking.startTime = updatedBooking.startTime ?? existingBooking.startTime;
-            existingBooking.endTime = updatedBooking.endTime ?? existingBooking.endTime;
-            existingBooking.status = updatedBooking.status;
-            existingBooking.price = updatedBooking.price ?? existingBooking.price;
-            existingBooking.childId = updatedBooking.childId ?? existingBooking.childId;
-            existingBooking.note = updatedBooking.note ?? existingBooking.note;
-            existingBooking.subscriptionStartTime = updatedBooking.subscriptionStartTime ?? existingBooking.subscriptionStartTime;
-            existingBooking.subscriptionEndTime = updatedBooking.subscriptionEndTime ?? existingBooking.subscriptionEndTime;
+            existingBooking.TableId = updatedBooking.TableId ?? existingBooking.TableId;
+            existingBooking.StartTime = updatedBooking.StartTime ?? existingBooking.StartTime;
+            existingBooking.EndTime = updatedBooking.EndTime ?? existingBooking.EndTime;
+            existingBooking.Status = updatedBooking.Status;
+            existingBooking.Price = updatedBooking.Price ?? existingBooking.Price;
+            existingBooking.ChildId = updatedBooking.ChildId ?? existingBooking.ChildId;
+            existingBooking.Note = updatedBooking.Note ?? existingBooking.Note;
+            existingBooking.SubscriptionStartTime = updatedBooking.SubscriptionStartTime ?? existingBooking.SubscriptionStartTime;
+            existingBooking.SubscriptionEndTime = updatedBooking.SubscriptionEndTime ?? existingBooking.SubscriptionEndTime;
 
             // Eğer bir paket (Purchase) kullanılıyorsa, onu da bağla (usp_update_booking logic)
-            if (updatedBooking.purchaseId.HasValue)
+            if (updatedBooking.PurchaseId.HasValue)
             {
-                var exists = await _context.PurchaseBookings.AnyAsync(pb => pb.bookingId == existingBooking.id && pb.purchaseId == updatedBooking.purchaseId.Value);
+                var exists = await _context.PurchaseBookings.AnyAsync(pb => pb.BookingId == existingBooking.Id && pb.PurchaseId == updatedBooking.PurchaseId.Value);
                 if (!exists)
                 {
                     _context.PurchaseBookings.Add(new PurchaseBooking
                     {
-                        bookingId = existingBooking.id,
-                        purchaseId = updatedBooking.purchaseId.Value
+                        BookingId = existingBooking.Id,
+                        PurchaseId = updatedBooking.PurchaseId.Value
                     });
                 }
             }

@@ -4,17 +4,17 @@ namespace Iroh.Models.DTOs.Company
 {
     public class CompanyDto
     {
-        public int id { get; set; }
-        public required string name { get; set; }
-        public int firstHourPrice { get; set; }
-        public int additionalHalfHourPrice { get; set; }
+        public int Id { get; set; }
+        public required string Name { get; set; }
+        public int FirstHourPrice { get; set; }
+        public int AdditionalHalfHourPrice { get; set; }
 
         public static CompanyDto From(Models.Entities.Company c) => new()
         {
-            id = c.id,
-            name = c.name,
-            firstHourPrice = c.firstHourPrice,
-            additionalHalfHourPrice = c.additionalHalfHourPrice
+            Id = c.Id,
+            Name = c.Name,
+            FirstHourPrice = c.FirstHourPrice,
+            AdditionalHalfHourPrice = c.AdditionalHalfHourPrice
         };
     }
 }

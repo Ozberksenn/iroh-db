@@ -22,20 +22,20 @@ namespace Iroh.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var authResponse = await _authService.Login(loginDto.mail, loginDto.password);
+            var authResponse = await _authService.Login(loginDto.Mail, loginDto.Password);
             if (authResponse == null)
             {
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "E-posta veya şifre hatalı!");
             }
 
-            SetRefreshTokenCookie(authResponse.refreshToken);
+            SetRefreshTokenCookie(authResponse.RefreshToken);
             return Ok(ApiResponse.Ok(authResponse, "Giriş başarılı"));
         }
 
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto refreshTokenDto)
         {
-            string? token = refreshTokenDto.refreshToken;
+            string? token = refreshTokenDto.RefreshToken;
             if (string.IsNullOrEmpty(token))
             {
                 token = Request.Cookies["refreshToken"];
@@ -52,7 +52,7 @@ namespace Iroh.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Geçersiz veya süresi dolmuş token!");
             }
 
-            SetRefreshTokenCookie(authResponse.refreshToken);
+            SetRefreshTokenCookie(authResponse.RefreshToken);
             return Ok(ApiResponse.Ok(authResponse, "Token başarıyla yenilendi"));
         }
 
@@ -62,22 +62,22 @@ namespace Iroh.Controllers
             // Dup e-posta → AuthService BusinessRuleException atar → handler 400 ProblemDetails.
             var createdUser = await _authService.Register(new User
             {
-                name = registerDto.name,
-                lastname = registerDto.lastName,
-                mail = registerDto.mail,
-                password = registerDto.password,
-                phone = registerDto.phone,
-                isActive = true
+                Name = registerDto.Name,
+                LastName = registerDto.LastName,
+                Mail = registerDto.Mail,
+                Password = registerDto.Password,
+                Phone = registerDto.Phone,
+                IsActive = true
             });
 
             var dto = new UserResponseDto
             {
-                id = createdUser.id,
-                name = createdUser.name,
-                lastname = createdUser.lastname,
-                mail = createdUser.mail,
-                phone = createdUser.phone,
-                isActive = createdUser.isActive
+                Id = createdUser.Id,
+                Name = createdUser.Name,
+                LastName = createdUser.LastName,
+                Mail = createdUser.Mail,
+                Phone = createdUser.Phone,
+                IsActive = createdUser.IsActive
             };
             return Ok(ApiResponse.Ok(dto, "Kullanıcı başarıyla oluşturuldu"));
         }

@@ -29,9 +29,9 @@ namespace Iroh.Services
 
         public async Task<AuthResponseDto?> Login(string mail, string password)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.mail == mail && u.isActive);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Mail == mail && u.IsActive);
             
-            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.password))
+            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
                 return null;
             }
@@ -62,7 +62,7 @@ namespace Iroh.Services
                 var jwtToken = (JwtSecurityToken)validatedToken;
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == JwtRegisteredClaimNames.Sub).Value);
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.id == userId && u.isActive);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
                 if (user == null) return null;
 
                 return GenerateAuthResponse(user);
@@ -75,13 +75,13 @@ namespace Iroh.Services
 
         public async Task<User> Register(User user)
         {
-            if (await _context.Users.AnyAsync(u => u.mail == user.mail))
+            if (await _context.Users.AnyAsync(u => u.Mail == user.Mail))
             {
                 throw new BusinessRuleException("Bu e-posta adresi zaten kullanımda!");
             }
 
-            user.password = BCrypt.Net.BCrypt.HashPassword(user.password);
-            user.isActive = true;
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            user.IsActive = true;
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -102,10 +102,10 @@ namespace Iroh.Services
 
             return new AuthResponseDto
             {
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-                expiresIn = Convert.ToDouble(jwtSettings["ExpiryInMinutes"]) * 60,
-                refreshExpiresIn = Convert.ToDouble(jwtSettings["RefreshExpiryInDays"]) * 24 * 60 * 60
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = Convert.ToDouble(jwtSettings["ExpiryInMinutes"]) * 60,
+                RefreshExpiresIn = Convert.ToDouble(jwtSettings["RefreshExpiryInDays"]) * 24 * 60 * 60
             };
         }
 
@@ -117,10 +117,10 @@ namespace Iroh.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.mail),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Mail),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("name", user.name)
+                new Claim("name", user.Name)
             };
 
             var token = new JwtSecurityToken(

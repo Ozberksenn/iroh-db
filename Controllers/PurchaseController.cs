@@ -45,12 +45,12 @@ namespace Iroh.Controllers
         {
             var purchase = new Purchase
             {
-                hours = purchaseCreateDto.hours,
-                price = purchaseCreateDto.price,
-                customerId = purchaseCreateDto.customerId,
-                startDate = purchaseCreateDto.startDate,
-                endDate = purchaseCreateDto.endDate,
-                createdAt = DateTime.UtcNow
+                Hours = purchaseCreateDto.Hours,
+                Price = purchaseCreateDto.Price,
+                CustomerId = purchaseCreateDto.CustomerId,
+                StartDate = purchaseCreateDto.StartDate,
+                EndDate = purchaseCreateDto.EndDate,
+                CreatedAt = DateTime.UtcNow
             };
             await _purchaseService.Create(purchase);
             return Ok(ApiResponse.Ok<object?>(null, "Paket başarıyla oluşturuldu"));

@@ -6,25 +6,26 @@ namespace Iroh.Models.Entities
     [Table("children", Schema = "public")]
     public class Child : BaseEntity
     {
-        public required string name { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
 
         [Column("parent_id")]
-        public int parentId { get; set; }
+        public int ParentId { get; set; }
 
-        [ForeignKey("parentId")]
+        [ForeignKey("ParentId")]
         [JsonIgnore]
-        public Customer? parent { get; set; }
+        public Customer? Parent { get; set; }
 
         [Column("birth_date")]
-        public DateTime birthDate { get; set; }
+        public DateTime BirthDate { get; set; }
 
         [Column("created_at")]
-        public DateTime createdAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("updated_at")]
-        public DateTime updatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("is_deleted")]
-        public bool isDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
     }
 }

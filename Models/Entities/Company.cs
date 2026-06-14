@@ -5,12 +5,13 @@ namespace Iroh.Models.Entities
     [Table("company", Schema = "public")]
     public class Company : BaseEntity
     {
-        public required string name { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
 
         [Column("firsthourprice")]
-        public required int firstHourPrice { get; set; }
+        public required int FirstHourPrice { get; set; }
 
         [Column("additionalhalfhourprice")]
-        public required int additionalHalfHourPrice { get; set; }
+        public required int AdditionalHalfHourPrice { get; set; }
     }
 }

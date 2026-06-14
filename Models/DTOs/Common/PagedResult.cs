@@ -2,10 +2,10 @@ namespace Iroh.Models.DTOs.Common
 {
     public class PagedResult<T>
     {
-        public List<T> items { get; set; } = new();
-        public int page { get; set; }
-        public int size { get; set; }
-        public int totalPages { get; set; }
-        public int totalSize { get; set; }
+        public List<T> Items { get; set; } = new();
+        public int Page { get; set; }
+        public int Size { get; set; }
+        public int TotalPages { get; set; }
+        public int TotalSize { get; set; }
     }
 }

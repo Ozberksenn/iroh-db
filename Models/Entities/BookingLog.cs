@@ -9,19 +9,19 @@ namespace Iroh.Models.Entities
     public class BookingLog : BaseEntity
     {
         [Column("bookingid")]
-        public int bookingId { get; set; }
+        public int BookingId { get; set; }
 
-        [ForeignKey("bookingId")]
+        [ForeignKey("BookingId")]
         [JsonIgnore]
-        public Booking? booking { get; set; }
+        public Booking? Booking { get; set; }
 
         [Column("time")]
-        public DateTime time { get; set; } = DateTime.UtcNow;
+        public DateTime Time { get; set; } = DateTime.UtcNow;
 
         [Column("type")]
-        public BookingLogType type { get; set; }
+        public BookingLogType Type { get; set; }
 
         [Column("userid")]
-        public int? userId { get; set; }
+        public int? UserId { get; set; }
     }
 }

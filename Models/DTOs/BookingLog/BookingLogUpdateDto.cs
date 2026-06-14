@@ -4,12 +4,12 @@ namespace Iroh.Models.DTOs.BookingLog
 {
     public class BookingLogUpdateDto
     {
-        public int bookingId { get; set; }
+        public int BookingId { get; set; }
 
-        public DateTime time { get; set; }
+        public DateTime Time { get; set; }
 
-        public BookingLogType type { get; set; }
+        public BookingLogType Type { get; set; }
 
-        public int userId { get; set; }
+        public int UserId { get; set; }
     }
 }

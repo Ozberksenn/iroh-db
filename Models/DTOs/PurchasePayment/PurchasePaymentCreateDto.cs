@@ -6,12 +6,12 @@ namespace Iroh.Models.DTOs.PurchasePayment
     public class PurchasePaymentCreateDto
     {
         [Required]
-        public required decimal hours { get; set; }
+        public required decimal Hours { get; set; }
 
         [Required]
-        public required decimal price { get; set; }
+        public required decimal Price { get; set; }
 
         [Required]
-        public required int purchaseId { get; set; }
+        public required int PurchaseId { get; set; }
     }
 }

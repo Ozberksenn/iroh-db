@@ -36,20 +36,20 @@ namespace Iroh.Services
             var pattern = "%" + (search ?? "") + "%";
 
             var rows = await (
-                from c in _context.Customers.Where(c => !c.isDeleted && c.id != SystemGuestId)
-                from ch in _context.Children.Where(ch => ch.parentId == c.id && !ch.isDeleted).DefaultIfEmpty()
-                where EF.Functions.ILike(c.name, pattern)
-                   || (c.lastName != null && EF.Functions.ILike(c.lastName, pattern))
-                   || (c.phone != null && EF.Functions.ILike(c.phone, pattern))
-                   || (ch != null && EF.Functions.ILike(ch.name, pattern))
+                from c in _context.Customers.Where(c => !c.IsDeleted && c.Id != SystemGuestId)
+                from ch in _context.Children.Where(ch => ch.ParentId == c.Id && !ch.IsDeleted).DefaultIfEmpty()
+                where EF.Functions.ILike(c.Name, pattern)
+                   || (c.LastName != null && EF.Functions.ILike(c.LastName, pattern))
+                   || (c.Phone != null && EF.Functions.ILike(c.Phone, pattern))
+                   || (ch != null && EF.Functions.ILike(ch.Name, pattern))
                 select new
                 {
-                    parentId = c.id,
-                    parentName = c.name,
-                    parentLastName = c.lastName,
-                    parentPhone = c.phone,
-                    childId = ch != null ? (int?)ch.id : null,
-                    childName = ch != null ? ch.name : null
+                    parentId = c.Id,
+                    parentName = c.Name,
+                    parentLastName = c.LastName,
+                    parentPhone = c.Phone,
+                    childId = ch != null ? (int?)ch.Id : null,
+                    childName = ch != null ? ch.Name : null
                 }
             ).ToListAsync();
 
@@ -61,9 +61,9 @@ namespace Iroh.Services
             // is_active + current_table_name: Active/Paused oturumu olan çocuklar.
             var childIds = rows.Where(r => r.childId.HasValue).Select(r => r.childId!.Value).Distinct().ToList();
             var activeBookings = await _context.Bookings
-                .Where(b => b.childId != null && childIds.Contains(b.childId.Value)
-                         && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused))
-                .Select(b => new { ChildId = b.childId!.Value, TableName = b.table != null ? b.table.name : null })
+                .Where(b => b.ChildId != null && childIds.Contains(b.ChildId.Value)
+                         && (b.Status == BookingStatus.Active || b.Status == BookingStatus.Paused))
+                .Select(b => new { ChildId = b.ChildId!.Value, TableName = b.Table != null ? b.Table.Name : null })
                 .ToListAsync();
             var activeChildIds = activeBookings.Select(x => x.ChildId).ToHashSet();
             var tableByChild = activeBookings
@@ -91,7 +91,7 @@ namespace Iroh.Services
                         parent_id = r.parentId,
                         parent_name = r.parentName + " " + (r.parentLastName ?? ""),
                         parent_phone = r.parentPhone ?? "",
-                        status = status,
+                        Status = status,
                         remaining_hours = (decimal)(sub.BestRemainingMinutes / 60.0),
                         is_active = r.childId.HasValue && activeChildIds.Contains(r.childId.Value),
                         current_table_name = r.childId.HasValue && tableByChild.TryGetValue(r.childId.Value, out var tn) ? tn : null
@@ -116,12 +116,12 @@ namespace Iroh.Services
 
             var child = new Child
             {
-                parentId = parentId,
-                name = name,
-                birthDate = birthDate ?? DateTime.MinValue,
-                isDeleted = false,
-                createdAt = DateTime.Now,
-                updatedAt = DateTime.Now
+                ParentId = parentId,
+                Name = name,
+                BirthDate = birthDate ?? DateTime.MinValue,
+                IsDeleted = false,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             _context.Children.Add(child);
@@ -132,32 +132,32 @@ namespace Iroh.Services
         public async Task<List<Child>> GetChildrenByParentId(int parentId)
         {
             return await _context.Children
-                .Where(c => c.parentId == parentId && !c.isDeleted)
-                .OrderByDescending(c => c.createdAt)
+                .Where(c => c.ParentId == parentId && !c.IsDeleted)
+                .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
         }
 
         public async Task UpdateChild(int id, string name, DateTime? birthDate)
         {
-            var child = await _context.Children.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+            var child = await _context.Children.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
             if (child == null)
             {
                 throw new NotFoundException("Çocuk bulunamadı veya silinmiş!");
             }
 
-            child.name = name;
+            child.Name = name;
             if (birthDate.HasValue)
             {
-                child.birthDate = birthDate.Value;
+                child.BirthDate = birthDate.Value;
             }
-            child.updatedAt = DateTime.Now;
+            child.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
         }
 
         public async Task DeleteChild(int id)
         {
-            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.childId == id && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
+            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.ChildId == id && (b.Status == BookingStatus.Active || b.Status == BookingStatus.Paused));
             if (hasActiveBooking)
             {
                 throw new BusinessRuleException("Bu çocuğun şu an içeride aktif bir oturumu var. Oturum kapatılmadan silinemez!");
@@ -169,14 +169,14 @@ namespace Iroh.Services
                 throw new NotFoundException("Çocuk bulunamadı!");
             }
 
-            child.isDeleted = true;
-            child.updatedAt = DateTime.Now;
+            child.IsDeleted = true;
+            child.UpdatedAt = DateTime.Now;
             await _context.SaveChangesAsync();
         }
 
         public async Task<Child?> GetById(int id)
         {
-            return await _context.Children.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+            return await _context.Children.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
     }
 }

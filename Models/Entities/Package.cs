@@ -5,20 +5,25 @@ namespace Iroh.Models.Entities
     [Table("packages", Schema = "public")]
     public class Package : BaseEntity
     {
-        public required string name { get; set; }
-        public required decimal hours { get; set; }
-        public required decimal price { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
+
+        [Column("hours")]
+        public required decimal Hours { get; set; }
+
+        [Column("price")]
+        public required decimal Price { get; set; }
 
         [Column("validity_days")]
-        public int? validityDays { get; set; }
+        public int? ValidityDays { get; set; }
 
         [Column("is_deleted")]
-        public bool isDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
 
         [Column("created_at")]
-        public DateTime createdAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         [Column("updated_at")]
-        public DateTime updatedAt { get; set; } = DateTime.Now;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }

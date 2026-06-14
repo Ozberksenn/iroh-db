@@ -46,10 +46,10 @@ namespace Iroh.Controllers
         {
             var customer = new Customer
             {
-                name = customerCreateDto.name,
-                lastName = customerCreateDto.lastName,
-                phone = customerCreateDto.phone,
-                mail = customerCreateDto.mail
+                Name = customerCreateDto.Name,
+                LastName = customerCreateDto.LastName,
+                Phone = customerCreateDto.Phone,
+                Mail = customerCreateDto.Mail
             };
             var createdCustomer = await _customerService.Create(customer);
             return Ok(ApiResponse.Ok(CustomerDto.From(createdCustomer), "Müşteri başarıyla oluşturuldu"));

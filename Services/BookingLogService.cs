@@ -24,8 +24,8 @@ namespace Iroh.Services
         public async Task<List<BookingLog>> GetAll() =>
             await _context.BookingLogs
                 .AsNoTracking()
-                .Include(b => b.booking)
-                .OrderByDescending(b => b.time)
+                .Include(b => b.Booking)
+                .OrderByDescending(b => b.Time)
                 .ToListAsync();
 
         public async Task<BookingLog> Create(BookingLog log)
@@ -43,10 +43,10 @@ namespace Iroh.Services
             var log = await GetById(id)
                 ?? throw new NotFoundException("Kayıt bulunamadı");
 
-            log.bookingId = dto.bookingId;
-            log.time = dto.time;
-            log.type = dto.type;
-            log.userId = dto.userId;
+            log.BookingId = dto.BookingId;
+            log.Time = dto.Time;
+            log.Type = dto.Type;
+            log.UserId = dto.UserId;
 
             await _context.SaveChangesAsync();
             return log;
