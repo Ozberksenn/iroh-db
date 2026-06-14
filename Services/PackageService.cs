@@ -1,4 +1,5 @@
 using Iroh.Models.Entities;
+using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
@@ -41,7 +42,7 @@ namespace Iroh.Services
             var existing = await _context.Packages.FirstOrDefaultAsync(p => p.id == package.id && !p.isDeleted);
             if (existing == null)
             {
-                throw new Exception("Paket bulunamadı veya silinmiş!");
+                throw new NotFoundException("Paket bulunamadı veya silinmiş!");
             }
 
             existing.name = package.name;
@@ -58,7 +59,7 @@ namespace Iroh.Services
             var package = await _context.Packages.FindAsync(id);
             if (package == null)
             {
-                throw new Exception("Paket bulunamadı!");
+                throw new NotFoundException("Paket bulunamadı!");
             }
 
             package.isDeleted = true;

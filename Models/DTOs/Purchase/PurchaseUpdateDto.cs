@@ -8,9 +8,9 @@ namespace Iroh.Models.DTOs.Purchase
         [Required]
         public int id { get; set; }
 
-        public required int hours { get; set; }
+        public required decimal hours { get; set; }
 
-        public required int price { get; set; }
+        public required decimal price { get; set; }
 
         public required int customerId { get; set; }
 

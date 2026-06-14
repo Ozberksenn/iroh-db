@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
+using Iroh.Exceptions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Iroh.Services
@@ -68,7 +69,7 @@ namespace Iroh.Services
         {
             if (_context.User.Any(u => u.mail == user.mail))
             {
-                throw new InvalidOperationException("Bu e-posta adresi zaten kullanımda!");
+                throw new BusinessRuleException("Bu e-posta adresi zaten kullanımda!");
             }
 
             user.password = BCrypt.Net.BCrypt.HashPassword(user.password);

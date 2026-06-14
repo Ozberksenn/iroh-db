@@ -1,9 +1,6 @@
-
-
-using Iroh.Models.CustomResponses;
-using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.DTOs.PurchasePayment;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +10,6 @@ namespace Iroh.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-
     public class PurchasePaymentController : ControllerBase
     {
         private readonly PurchasePaymentService _purchasePaymentService;
@@ -27,8 +23,7 @@ namespace Iroh.Controllers
         public IActionResult Get()
         {
             var purchasePayments = _purchasePaymentService.GetAll();
-            var response = new CustomResponse<List<PurchasePayment>>(true, "Başırlı", purchasePayments);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(purchasePayments, "Başarılı"));
         }
 
         [HttpPost]
@@ -41,8 +36,7 @@ namespace Iroh.Controllers
                 purchaseId = dto.purchaseId
             };
             _purchasePaymentService.Create(purchasePayment);
-            var response = new CustomResponse<PurchasePayment>(true, "Başarıyla oluşturuldu", purchasePayment);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(purchasePayment, "Başarıyla oluşturuldu"));
         }
     }
 }

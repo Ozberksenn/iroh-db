@@ -1,7 +1,6 @@
-
-using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Booking;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,30 +10,41 @@ namespace Iroh.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-
     public class BookingController : ControllerBase
     {
         private readonly BookingService _bookingService;
+        private readonly SubscriptionService _subscriptionService;
 
-        public BookingController(BookingService bookingService)
+        public BookingController(BookingService bookingService, SubscriptionService subscriptionService)
         {
             _bookingService = bookingService;
+            _subscriptionService = subscriptionService;
         }
 
+        // usp_get_bookings: GET /api/booking?page=&size=&status=&name=&customerId=&childId=&startTime=&endTime=&tableId=
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get(
+            [FromQuery] int page = 1,
+            [FromQuery] int size = 20,
+            [FromQuery(Name = "status")] string[]? status = null,
+            [FromQuery] string? name = null,
+            [FromQuery] string? mail = null,
+            [FromQuery] int? customerId = null,
+            [FromQuery] int? childId = null,
+            [FromQuery] DateTime? startTime = null,
+            [FromQuery] DateTime? endTime = null,
+            [FromQuery] int? tableId = null)
         {
-            var bookings = _bookingService.GetAll();
-            var response = new CustomResponse<List<Booking>>(true, "Başırlı", bookings);
-            return Ok(response);
+            var result = await _bookingService.GetBookings(page, size, status, name, mail, customerId, childId, startTime, endTime, tableId);
+            return Ok(ApiResponse.Ok(result, "Başarılı"));
         }
 
+        // vw_activebookings: abone kademesi + en iyi paket + usedMinutes + payments + logs
         [HttpGet("Active")]
-        public IActionResult GetActive()
+        public async Task<IActionResult> GetActive()
         {
-            var bookings = _bookingService.GetActiveBookings();
-            var response = new CustomResponse<List<Booking>>(true, "Başarılı", bookings);
-            return Ok(response);
+            var bookings = await _subscriptionService.GetActiveBookings();
+            return Ok(ApiResponse.Ok(bookings, "Başarılı"));
         }
 
         [HttpPost]
@@ -51,18 +61,15 @@ namespace Iroh.Controllers
                 note = bookingCreateDto.note
             };
             var createdBooking = _bookingService.Create(booking);
-            var response = new CustomResponse<Booking>(true, "Başarılı", createdBooking);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(createdBooking, "Başarılı"));
         }
 
         [HttpPut]
         public IActionResult Update(BookingUpdateDto bookingUpdateDto)
         {
-            var updateBooking = _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
-            return updateBooking != null
-                ? Ok(new CustomResponse<Booking>(true, "Başarılı", updateBooking))
-                : NotFound(new CustomResponse<Booking>(false, "Kayıt bulunamadı", null));
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var updated = _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
+            return Ok(ApiResponse.Ok(updated, "Başarılı"));
         }
     }
-
 }

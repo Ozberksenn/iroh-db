@@ -1,5 +1,7 @@
 using Iroh.Models.Entities;
 using Iroh.Models.DTOs.Purchase;
+using Iroh.Models.DTOs.Booking;
+using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
@@ -12,10 +14,20 @@ namespace Iroh.Services
             _context = context;
         }
 
-        public List<Purchase> GetAll()
+        // vw_purchases: id, hours, price, customerId, startDate, endDate
+        public async Task<List<PurchaseListDto>> GetAll()
         {
-            // vw_purchases view'ını kullanabiliriz ama entity eşleşmesi için doğrudan tabloyu da çekebiliriz
-            return _context.Purchase.ToList();
+            return await _context.Purchase
+                .Select(p => new PurchaseListDto
+                {
+                    id = p.id,
+                    hours = p.hours,
+                    price = p.price,
+                    customerId = p.customerId,
+                    startDate = p.startDate,
+                    endDate = p.endDate
+                })
+                .ToListAsync();
         }
 
         public Purchase GetById(int id)
@@ -28,63 +40,101 @@ namespace Iroh.Services
             return purchase;
         }
 
+        // fn_get_purchase_by_customer_id: müşterinin paketleri + usedMinutes (DAKİKA) + gerçek payments listesi.
         public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
         {
             var purchases = await _context.Purchase
                 .Where(p => p.customerId == customerId)
                 .OrderByDescending(p => p.createdAt)
-                .Select(p => new CustomerPurchaseResultDto
-                {
-                    id = p.id,
-                    customerId = p.customerId,
-                    startDate = p.startDate,
-                    endDate = p.endDate,
-                    hours = p.hours,
-                    price = p.price,
-                    usedHours = _context.purchaseBookings
-                        .Where(pb => pb.purchaseId == p.id)
-                        .Join(_context.Booking, pb => pb.bookingId, b => b.id, (pb, b) => b)
-                        .Sum(b => b.subscriptionEndTime.HasValue && b.subscriptionStartTime.HasValue 
-                            ? (b.subscriptionEndTime.Value - b.subscriptionStartTime.Value).TotalMinutes / 60.0 
-                            : 0.0),
-                    payments = "[]" // TODO: Implement payments serialization if needed
-                })
+                .ToListAsync();
+            if (purchases.Count == 0) return new();
+
+            var purchaseIds = purchases.Select(p => p.id).ToList();
+            var payments = await _context.purchasePayments
+                .Where(pp => purchaseIds.Contains(pp.purchaseId))
+                .ToListAsync();
+            var linked = await _context.purchaseBookings
+                .Where(pb => purchaseIds.Contains(pb.purchaseId))
+                .Join(_context.Booking, pb => pb.bookingId, b => b.id,
+                      (pb, b) => new { pb.purchaseId, b.subscriptionStartTime, b.subscriptionEndTime })
                 .ToListAsync();
 
-            return purchases;
+            // fn_get_used_hours: Σ(subEnd - subStart) dakika (eski .NET /60 yapıp yanlış HOURS dönüyordu).
+            double UsedMinutesFor(int pid) => linked
+                .Where(x => x.purchaseId == pid && x.subscriptionStartTime.HasValue && x.subscriptionEndTime.HasValue)
+                .Sum(x => (x.subscriptionEndTime!.Value - x.subscriptionStartTime!.Value).TotalMinutes);
+
+            return purchases.Select(p => new CustomerPurchaseResultDto
+            {
+                id = p.id,
+                customerId = p.customerId,
+                startDate = p.startDate,
+                endDate = p.endDate,
+                hours = (double)p.hours,
+                price = (double)p.price,
+                usedMinutes = UsedMinutesFor(p.id),
+                payments = payments.Where(pp => pp.purchaseId == p.id)
+                    .Select(pp => new PaymentDto { id = pp.id, purchaseId = pp.purchaseId, hours = pp.hours, price = pp.price })
+                    .ToList()
+            }).ToList();
         }
 
+        // usp_get_purchase_bookings_by_id: pakete bağlı bookings (nested booking). Proc INNER JOIN tables → sadece masası olanlar.
+        // Proc'taki bozuk b.customerId (yok olan kolon) yerine customerId child.parentId'den türetilir (D7).
         public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(long purchaseId)
         {
-            return await _context.purchaseBookings
-                .Where(pb => pb.purchaseId == purchaseId)
-                .Select(pb => new PurchaseBookingResultDto
+            var rows = await _context.purchaseBookings
+                .Where(pb => pb.purchaseId == purchaseId && pb.booking != null && pb.booking.tableId != null)
+                .Select(pb => new
                 {
-                    id = pb.id,
-                    purchase_id = pb.purchaseId,
-                    booking_id = pb.bookingId,
-                    booking = "{}" // TODO: Implement booking serialization if needed
+                    pb.id,
+                    pb.purchaseId,
+                    pb.bookingId,
+                    tableId = pb.booking!.tableId,
+                    tableName = pb.booking.table != null ? pb.booking.table.name : null,
+                    customerId = pb.booking.child != null ? (int?)pb.booking.child.parentId : null,
+                    startTime = pb.booking.startTime,
+                    endTime = pb.booking.endTime,
+                    status = pb.booking.status,
+                    note = pb.booking.note
                 })
                 .ToListAsync();
+
+            return rows.Select(r => new PurchaseBookingResultDto
+            {
+                id = r.id,
+                purchase_id = r.purchaseId,
+                booking_id = r.bookingId,
+                booking = new BookingBriefDto
+                {
+                    table = r.tableId != null ? new BookingTableDto { id = r.tableId, name = r.tableName } : null,
+                    tableId = r.tableId,
+                    customerId = r.customerId,
+                    startTime = r.startTime,
+                    endTime = r.endTime,
+                    status = r.status.ToString(),
+                    note = r.note
+                }
+            }).ToList();
         }
 
         public async Task Create(Purchase purchase)
         {
             if (purchase.customerId == 999999)
             {
-                throw new Exception("Sistem Misafiri kaydına paket tanımlanamaz!");
+                throw new BusinessRuleException("Sistem Misafiri kaydına paket tanımlanamaz!");
             }
             purchase.createdAt = DateTime.Now;
             _context.Purchase.Add(purchase);
             await _context.SaveChangesAsync();
         }
 
-        public async Task Update(long id, int hours, int price, long customerId, DateTime? startDate, DateTime? endDate)
+        public async Task Update(long id, decimal hours, decimal price, long customerId, DateTime? startDate, DateTime? endDate)
         {
             var purchase = await _context.Purchase.FindAsync((int)id);
             if (purchase == null)
             {
-                throw new Exception("Paket bulunamadı!");
+                throw new NotFoundException("Paket bulunamadı!");
             }
 
             // usp_update_purchase logic: check usage and payments
@@ -93,7 +143,7 @@ namespace Iroh.Services
 
             if (purchase.hours != hours && (hasUsage || hasPayments))
             {
-                throw new Exception("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
+                throw new BusinessRuleException("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
             }
 
             purchase.hours = hours;
@@ -109,7 +159,7 @@ namespace Iroh.Services
         public async Task Delete(long id)
         {
             // Bu işlem güvenlik gereği engellenmiştir
-            throw new Exception("Güvenlik ve denetim gereği satın alım kayıtları silinemez! Yanlış bir işlem yaptıysanız lütfen ek ödeme (payment) ile bakiyeyi dengeleyin veya yöneticiye başvurun.");
+            throw new BusinessRuleException("Güvenlik ve denetim gereği satın alım kayıtları silinemez! Yanlış bir işlem yaptıysanız lütfen ek ödeme (payment) ile bakiyeyi dengeleyin veya yöneticiye başvurun.");
         }
     }
 }

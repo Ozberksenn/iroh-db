@@ -1,66 +1,98 @@
+using Iroh.Models.DTOs.Common;
+using Iroh.Models.DTOs.Customer;
 using Iroh.Models.Entities;
 using Iroh.Models.Enums;
+using Iroh.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
     public class CustomerService
     {
+        private const int SystemGuestId = 999999;
+
         private readonly AppDbContext _context;
         public CustomerService(AppDbContext context)
         {
             _context = context;
         }
 
+        // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
+        public async Task<Customer?> GetById(int id)
+        {
+            return await _context.Customer.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+        }
+
+        // Update/Delete'in iç kullanımı — soft-delete filtresi uygulamaz.
         public Customer? GetCustomerById(int id)
         {
             return _context.Customer.FirstOrDefault(c => c.id == id);
         }
 
-        public List<Customer> GetAll()
+        // fn_get_customers paritesi: hesaplanmış abone statüsü + serbest metin arama + sayfalama.
+        // status: aktif (now BETWEEN start/end) paketi olan -> ActiveSubscriber; herhangi paketi olan -> Subscriber; yoksa -> Customer.
+        public async Task<PagedResult<CustomerListItemDto>> GetCustomers(string? status, int page, int size, string? name)
         {
-            return _context.Customer.Where(c => !c.isDeleted && c.id != 999999).ToList();
+            var now = DateTime.UtcNow;
+
+            var query = _context.Customer.Where(c => !c.isDeleted && c.id != SystemGuestId);
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var pattern = $"%{name}%";
+                query = query.Where(c =>
+                    EF.Functions.ILike(
+                        c.name + " " + (c.lastName ?? "") + " " + (c.phone ?? "") + " " + (c.mail ?? ""),
+                        pattern)
+                    || _context.Children.Any(ch => ch.parentId == c.id && EF.Functions.ILike(ch.name, pattern)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = status switch
+                {
+                    "ActiveSubscriber" => query.Where(c =>
+                        _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
+                    "Subscriber" => query.Where(c =>
+                        _context.Purchase.Any(p => p.customerId == c.id)
+                        && !_context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)),
+                    "Customer" => query.Where(c => !_context.Purchase.Any(p => p.customerId == c.id)),
+                    _ => query
+                };
+            }
+
+            var totalSize = await query.CountAsync();
+
+            IQueryable<Customer> ordered = query.OrderBy(c => c.id);
+            if (page != -1)
+            {
+                ordered = ordered.Skip((page - 1) * size).Take(size);
+            }
+
+            var items = await ordered.Select(c => new CustomerListItemDto
+            {
+                id = c.id,
+                name = c.name,
+                lastName = c.lastName,
+                phone = c.phone,
+                mail = c.mail,
+                status = _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now)
+                    ? "ActiveSubscriber"
+                    : _context.Purchase.Any(p => p.customerId == c.id)
+                        ? "Subscriber"
+                        : "Customer"
+            }).ToListAsync();
+
+            return new PagedResult<CustomerListItemDto>
+            {
+                items = items,
+                page = page,
+                size = size,
+                totalSize = totalSize,
+                totalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
+            };
         }
 
-        public async Task<(List<object> items, double totalCount)> GetPaginated(string? status, int page, int size, string? name)
-        {
-            var now = DateTime.Now;
-
-            var baseQuery = from c in _context.Customer
-                            where !c.isDeleted && c.id != 999999
-                            let customerStatus = _context.Purchase.Any(p => p.customerId == c.id && p.startDate <= now && p.endDate >= now) ? "ActiveSubscriber" :
-                                                _context.Purchase.Any(p => p.customerId == c.id) ? "Subscriber" : "Customer"
-                            let childrenNames = _context.Children
-                                                .Where(ch => ch.parentId == c.id && !ch.isDeleted)
-                                                .Select(ch => ch.name)
-                            select new
-                            {
-                                id = c.id,
-                                name = c.name,
-                                lastName = c.lastName,
-                                phone = c.phone,
-                                mail = c.mail,
-                                status = customerStatus,
-                                childrenNamesString = string.Join(" ", childrenNames)
-                            };
-
-            var filteredQuery = baseQuery.Where(c => 
-                (string.IsNullOrEmpty(name) || (
-                    c.name + " " + (c.lastName ?? "") + " " + (c.phone ?? "") + " " + (c.mail ?? "") + " " + c.childrenNamesString
-                ).ToLower().Contains(name.ToLower())) &&
-                (string.IsNullOrEmpty(status) || c.status == status)
-            );
-
-            var filteredList = filteredQuery.ToList();
-            var totalCount = filteredList.Count();
-            
-            var results = filteredList
-                .OrderBy(c => c.id)
-                .Skip(page == -1 ? 0 : (page - 1) * size)
-                .Take(page == -1 ? int.MaxValue : size)
-                .ToList();
-
-            return (results.Cast<object>().ToList(), (double)totalCount);
-        }
         public Customer Create(Customer customer)
         {
             _context.Customer.Add(customer);
@@ -70,9 +102,9 @@ namespace Iroh.Services
 
         public Customer Update(Customer customer)
         {
-            if (customer.id == 999999)
+            if (customer.id == SystemGuestId)
             {
-                throw new InvalidOperationException("Sistem Misafiri kaydı değiştirilemez!");
+                throw new BusinessRuleException("Sistem Misafiri kaydı değiştirilemez!");
             }
 
             customer.updatedAt = DateTime.UtcNow;
@@ -80,24 +112,25 @@ namespace Iroh.Services
             _context.SaveChanges();
             return customer;
         }
+
         public Customer Delete(Customer customer)
         {
-            if (customer.id == 999999)
+            if (customer.id == SystemGuestId)
             {
-                throw new InvalidOperationException("Sistem Misafiri kaydı silinemez!");
+                throw new BusinessRuleException("Sistem Misafiri kaydı silinemez!");
             }
 
-            // Aktif veya Beklemede olan bir oturum (booking) var mı kontrol et
+            // Aktif/Beklemede oturumu olan bir çocuk varsa engelle.
             var hasActiveBooking = _context.Booking
                 .Any(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
                           && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
 
             if (hasActiveBooking)
             {
-                throw new InvalidOperationException("Bu ebeveynin bir çocuğu şu an içeride aktif oturumda. Oturum kapanmadan silinemez!");
+                throw new BusinessRuleException("Bu ebeveynin bir çocuğu şu an içeride aktif oturumda. Oturum kapanmadan silinemez!");
             }
 
-            // Çocukları soft-delete yap
+            // Çocukları cascade soft-delete.
             var children = _context.Children.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToList();
             foreach (var child in children)
             {
@@ -105,7 +138,6 @@ namespace Iroh.Services
                 child.updatedAt = DateTime.UtcNow;
             }
 
-            // Müşteriyi soft-delete yap
             customer.isDeleted = true;
             customer.updatedAt = DateTime.UtcNow;
 
@@ -113,6 +145,5 @@ namespace Iroh.Services
             _context.SaveChanges();
             return customer;
         }
-
     }
 }

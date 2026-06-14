@@ -1,5 +1,8 @@
 using Iroh.Models.DTOs.Booking;
+using Iroh.Models.DTOs.Common;
 using Iroh.Models.Entities;
+using Iroh.Models.Enums;
+using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
@@ -12,14 +15,91 @@ namespace Iroh.Services
             _context = context;
         }
 
-        public List<Booking> GetAll()
+        // usp_get_bookings paritesi: sayfalı + filtreli liste; table/customer iç içe DTO; ORDER BY id DESC.
+        public async Task<PagedResult<BookingListItemDto>> GetBookings(
+            int page, int size, string[]? status, string? name, string? mail,
+            int? customerId, int? childId, DateTime? startTime, DateTime? endTime, int? tableId)
         {
-            // .Include(b => b.table) ekleyerek masanın bilgilerini (adını vb.) de getiriyoruz.
-            return _context.Booking
-                .Include(b => b.table)
-                .Include(b => b.child)
-                    .ThenInclude(c => c.parent)
-                .ToList();
+            // NOT: p_mail proc imzasında var ama gövdesinde kullanılmıyor (no-op) — parite için yok sayıldı.
+            var query = _context.Booking.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var pattern = $"%{name}%";
+                query = query.Where(b => EF.Functions.ILike(
+                    (b.child != null ? b.child.name : "") + " " +
+                    (b.child != null && b.child.parent != null ? b.child.parent.name : "") + " " +
+                    (b.child != null && b.child.parent != null ? (b.child.parent.lastName ?? "") : "") + " " +
+                    (b.child != null && b.child.parent != null ? (b.child.parent.phone ?? "") : "") + " " +
+                    (b.table != null ? (b.table.name ?? "") : "") + " " +
+                    (b.note ?? ""),
+                    pattern));
+            }
+
+            if (status != null && status.Length > 0)
+            {
+                var statusEnums = status
+                    .Select(s => Enum.TryParse<BookingStatus>(s, true, out var e) ? (BookingStatus?)e : null)
+                    .Where(e => e.HasValue)
+                    .Select(e => e!.Value)
+                    .ToList();
+                if (statusEnums.Count > 0)
+                {
+                    query = query.Where(b => statusEnums.Contains(b.status));
+                }
+            }
+
+            if (customerId.HasValue)
+                query = query.Where(b => b.child != null && b.child.parentId == customerId.Value);
+            if (childId.HasValue)
+                query = query.Where(b => b.childId == childId.Value);
+            if (startTime.HasValue)
+                query = query.Where(b => b.startTime >= startTime.Value);
+            if (endTime.HasValue)
+                query = query.Where(b => b.startTime <= endTime.Value);
+            if (tableId.HasValue)
+                query = query.Where(b => b.tableId == tableId.Value);
+
+            var totalSize = await query.CountAsync();
+
+            IQueryable<Booking> ordered = query.OrderByDescending(b => b.id);
+            if (page != -1)
+                ordered = ordered.Skip((page - 1) * size).Take(size);
+
+            var items = await ordered.Select(b => new BookingListItemDto
+            {
+                id = b.id,
+                table = b.tableId != null
+                    ? new BookingTableDto { id = b.table!.id, name = b.table.name }
+                    : null,
+                customer = b.childId != null
+                    ? new BookingCustomerDto
+                    {
+                        childId = b.child!.id,
+                        name = b.child.name,
+                        parentId = b.child.parent != null ? b.child.parent.id : (int?)null,
+                        parentName = b.child.parent != null ? b.child.parent.name : null,
+                        parentLastName = b.child.parent != null ? b.child.parent.lastName : null,
+                        phone = b.child.parent != null ? b.child.parent.phone : null
+                    }
+                    : null,
+                price = b.price,
+                startTime = b.startTime,
+                endTime = b.endTime,
+                subscriptionStartTime = b.subscriptionStartTime,
+                subscriptionEndTime = b.subscriptionEndTime,
+                status = b.status.ToString(),
+                note = b.note
+            }).ToListAsync();
+
+            return new PagedResult<BookingListItemDto>
+            {
+                items = items,
+                page = page,
+                size = size,
+                totalSize = totalSize,
+                totalPages = page == -1 ? 1 : (int)Math.Ceiling((double)totalSize / size)
+            };
         }
 
         public Booking? GetById(int id)
@@ -31,18 +111,6 @@ namespace Iroh.Services
                 .FirstOrDefault(b => b.id == id);
         }
 
-        public List<Booking> GetActiveBookings()
-        {
-            // vw_activebookings mantığını C# tarafında LINQ ile karşılıyoruz.
-            return _context.Booking
-                .Include(b => b.table)
-                .Include(b => b.child)
-                    .ThenInclude(c => c.parent)
-                .Include(b => b.logs)
-                .Where(b => b.status == Iroh.Models.Enums.BookingStatus.Active || b.status == Iroh.Models.Enums.BookingStatus.Paused)
-                .ToList();
-        }
-
         public Booking Create(Booking booking)
         {
             _context.Booking.Add(booking);
@@ -50,12 +118,12 @@ namespace Iroh.Services
             return booking;
         }
 
-        public Booking? Update(int id, BookingUpdateDto updatedBooking)
+        public Booking Update(int id, BookingUpdateDto updatedBooking)
         {
             var existingBooking = _context.Booking.Find(id);
             if (existingBooking == null)
             {
-                return null;
+                throw new NotFoundException("Kayıt bulunamadı");
             }
 
             existingBooking.tableId = updatedBooking.tableId ?? existingBooking.tableId;

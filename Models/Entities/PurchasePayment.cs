@@ -5,8 +5,8 @@ namespace Iroh.Models.Entities
     [Table("purchasepayments", Schema = "public")]
     public class PurchasePayment : BaseEntity
     {
-        public int hours { get; set; }
-        public int price { get; set; }
+        public decimal hours { get; set; }
+        public decimal price { get; set; }
 
         [Column("purchaseid")]
         public int purchaseId { get; set; }

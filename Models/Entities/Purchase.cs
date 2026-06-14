@@ -5,8 +5,8 @@ namespace Iroh.Models.Entities
     [Table("purchases", Schema = "public")]
     public class Purchase : BaseEntity
     {
-        public required int hours { get; set; }
-        public required int price { get; set; }
+        public required decimal hours { get; set; }
+        public required decimal price { get; set; }
 
         [Column("createdat")]
         public required DateTime createdAt { get; set; }

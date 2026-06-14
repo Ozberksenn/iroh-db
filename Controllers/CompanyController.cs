@@ -1,17 +1,15 @@
-using Iroh.Models.CustomResponses;
+using Iroh.Exceptions;
 using Iroh.Models.DTOs.Company;
-using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 
 namespace Iroh.Controllers
 {
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-
     public class CompanyController : ControllerBase
     {
         private readonly CompanyService _companyService;
@@ -25,8 +23,7 @@ namespace Iroh.Controllers
         public IActionResult Get()
         {
             var companies = _companyService.GetAll();
-            var response = new CustomResponse<List<Company>>(true, "Başırlı", companies);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(companies, "Başarılı"));
         }
 
         [HttpPut]
@@ -35,7 +32,7 @@ namespace Iroh.Controllers
             var company = _companyService.GetCompanyById(dto.id);
             if (company == null)
             {
-                return NotFound();
+                throw new NotFoundException("Şirket bulunamadı");
             }
 
             company.name = dto.name;
@@ -43,8 +40,7 @@ namespace Iroh.Controllers
             company.additionalHalfHourPrice = dto.additionalHalfHourPrice;
 
             _companyService.Update(company);
-            var response = new CustomResponse<Company>(true, "Bilgiler Başarıyla Güncellendi.", company);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(company, "Bilgiler Başarıyla Güncellendi."));
         }
     }
 }

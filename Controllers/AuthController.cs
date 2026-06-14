@@ -1,6 +1,6 @@
-using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,21 +21,18 @@ namespace Iroh.Controllers
         public IActionResult Login([FromBody] LoginDto loginDto)
         {
             var authResponse = _authService.Login(loginDto.mail, loginDto.password);
-
             if (authResponse == null)
             {
-                return Unauthorized(new CustomResponse<string>(false, "E-posta veya şifre hatalı!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "E-posta veya şifre hatalı!");
             }
 
             SetRefreshTokenCookie(authResponse.refreshToken);
-
-            return Ok(new CustomResponse<AuthResponseDto>(true, "Giriş başarılı", authResponse));
+            return Ok(ApiResponse.Ok(authResponse, "Giriş başarılı"));
         }
 
         [HttpPost("refresh")]
         public IActionResult Refresh([FromBody] RefreshTokenDto refreshTokenDto)
         {
-            // Eğer body'de token yoksa cookie'den almayı dene
             string? token = refreshTokenDto.refreshToken;
             if (string.IsNullOrEmpty(token))
             {
@@ -44,37 +41,24 @@ namespace Iroh.Controllers
 
             if (string.IsNullOrEmpty(token))
             {
-                return Unauthorized(new CustomResponse<string>(false, "Refresh token bulunamadı!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Refresh token bulunamadı!");
             }
 
             var authResponse = _authService.RefreshToken(token);
-
             if (authResponse == null)
             {
-                return Unauthorized(new CustomResponse<string>(false, "Geçersiz veya süresi dolmuş token!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Geçersiz veya süresi dolmuş token!");
             }
 
             SetRefreshTokenCookie(authResponse.refreshToken);
-
-            return Ok(new CustomResponse<AuthResponseDto>(true, "Token başarıyla yenilendi", authResponse));
-        }
-
-        private void SetRefreshTokenCookie(string refreshToken)
-        {
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true, // Frontend https ise true olmalı, Node.js tarafında true'ydu
-                SameSite = SameSiteMode.None,
-                Expires = DateTime.UtcNow.AddDays(7)
-            };
-            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+            return Ok(ApiResponse.Ok(authResponse, "Token başarıyla yenilendi"));
         }
 
         [HttpPost("register")]
         public IActionResult Register([FromBody] UserRegisterDto registerDto)
         {
-            var user = new User
+            // Dup e-posta → AuthService BusinessRuleException atar → handler 400 ProblemDetails.
+            var createdUser = _authService.Register(new User
             {
                 name = registerDto.name,
                 lastname = registerDto.lastName,
@@ -82,21 +66,30 @@ namespace Iroh.Controllers
                 password = registerDto.password,
                 phone = registerDto.phone,
                 isActive = true
-            };
+            });
 
-            try
+            var dto = new UserResponseDto
             {
-                var createdUser = _authService.Register(user);
-                return Ok(new CustomResponse<User>(true, "Kullanıcı başarıyla oluşturuldu", createdUser));
-            }
-            catch (InvalidOperationException ex)
+                id = createdUser.id,
+                name = createdUser.name,
+                lastname = createdUser.lastname,
+                mail = createdUser.mail,
+                phone = createdUser.phone,
+                isActive = createdUser.isActive
+            };
+            return Ok(ApiResponse.Ok(dto, "Kullanıcı başarıyla oluşturuldu"));
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken)
+        {
+            var cookieOptions = new CookieOptions
             {
-                return BadRequest(new CustomResponse<string>(false, ex.Message, null));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new CustomResponse<string>(false, "Kayıt sırasında bir hata oluştu: " + ex.Message, null));
-            }
+                HttpOnly = true,
+                Secure = true, // TODO(B6/P5): ortama göre ayarla
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(7)
+            };
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
         }
     }
 }

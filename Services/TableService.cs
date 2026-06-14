@@ -1,4 +1,6 @@
 using Iroh.Models.Entities;
+using Iroh.Models.DTOs.Table;
+using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
@@ -11,9 +13,15 @@ namespace Iroh.Services
             _context = context;
         }
 
-        public List<Table> GetAll()
+        // vw_tables: id, name (isdeleted=false) + opsiyonel name ILIKE filtresi.
+        public async Task<List<TableDto>> GetAll(string? name)
         {
-            return _context.Table.Where(t => !t.isDeleted).ToList();
+            var query = _context.Table.Where(t => !t.isDeleted);
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                query = query.Where(t => EF.Functions.ILike(t.name, "%" + name + "%"));
+            }
+            return await query.Select(t => new TableDto { id = t.id, name = t.name }).ToListAsync();
         }
 
         public Table Create(Table table)
@@ -36,7 +44,7 @@ namespace Iroh.Services
             var hasActiveBooking = await _context.Booking.AnyAsync(b => b.tableId == (int)id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
             if (hasActiveBooking)
             {
-                throw new Exception("Bu masaya ait aktif rezervasyon var. Silinemez!");
+                throw new BusinessRuleException("Bu masaya ait aktif rezervasyon var. Silinemez!");
             }
 
             var table = await _context.Table.FindAsync((int)id);

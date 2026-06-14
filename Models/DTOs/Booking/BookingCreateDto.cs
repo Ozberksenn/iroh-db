@@ -10,7 +10,7 @@ namespace Iroh.Models.DTOs.Booking
         public DateTime? startTime { get; set; }
         public DateTime? endTime { get; set; }
         public required BookingStatus status { get; set; }
-        public int? price { get; set; }
+        public decimal? price { get; set; }
         public int? childId { get; set; }
         public string? note { get; set; }
     }

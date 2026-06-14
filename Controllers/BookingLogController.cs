@@ -1,7 +1,7 @@
-
-using Iroh.Models.CustomResponses;
+using Iroh.Exceptions;
 using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,8 +11,8 @@ namespace Iroh.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-
-    public class BookingLogController : ControllerBase    {
+    public class BookingLogController : ControllerBase
+    {
         private readonly BookingLogService _bookingLogService;
 
         public BookingLogController(BookingLogService bookingLogService)
@@ -24,8 +24,7 @@ namespace Iroh.Controllers
         public IActionResult Get()
         {
             var bookingLogs = _bookingLogService.GetAll();
-            var response = new CustomResponse<List<BookingLog>>(true, "Başırlı", bookingLogs);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(bookingLogs, "Başarılı"));
         }
 
         [HttpPost]
@@ -39,8 +38,7 @@ namespace Iroh.Controllers
                 userId = dto.userId
             };
             var result = _bookingLogService.Create(bookingLog);
-            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Oluşturuldu.", result);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Oluşturuldu."));
         }
 
         [HttpPut("{id}")]
@@ -49,8 +47,7 @@ namespace Iroh.Controllers
             var bookingLog = _bookingLogService.GetById(id);
             if (bookingLog == null)
             {
-                var errorResponse = new CustomResponse<BookingLog>(false, "Kayıt bulunamadı", null);
-                return NotFound(errorResponse);
+                throw new NotFoundException("Kayıt bulunamadı");
             }
 
             bookingLog.bookingId = dto.bookingId;
@@ -59,10 +56,7 @@ namespace Iroh.Controllers
             bookingLog.userId = dto.userId;
 
             var result = _bookingLogService.Update(bookingLog);
-            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Güncellendi.", result);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Güncellendi."));
         }
-
     }
-
 }

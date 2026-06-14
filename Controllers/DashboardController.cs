@@ -1,5 +1,4 @@
-using Iroh.Models.CustomResponses;
-using Iroh.Models.DTOs.Dashboard;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,13 +20,14 @@ namespace Iroh.Controllers
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
         {
-            // Eğer tarih gelmezse bugünü (Türkiye saatine göre) baz al
-            DateTime start = startDate ?? DateTime.Today;
-            DateTime end = endDate ?? DateTime.Today.AddDays(1).AddTicks(-1);
+            // "bugün" Türkiye saatine göre (B5).
+            var istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+            var todayIst = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, istanbul).Date;
+            DateTime start = startDate ?? todayIst;
+            DateTime end = endDate ?? todayIst.AddDays(1).AddTicks(-1);
 
             var result = await _dashboardService.GetDashboardSummary(start, end);
-            var response = new CustomResponse<DashboardResponseDto>(true, "Dashboard verileri başarıyla getirildi", result);
-            return Ok(response);
+            return Ok(ApiResponse.Ok(result, "Dashboard verileri başarıyla getirildi"));
         }
     }
 }

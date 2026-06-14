@@ -20,7 +20,7 @@ namespace Iroh.Models.Entities
 
         public BookingStatus status { get; set; }
 
-        public int? price { get; set; }
+        public decimal? price { get; set; }
 
         public string? note { get; set; }
 

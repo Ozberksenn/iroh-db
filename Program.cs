@@ -35,6 +35,10 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// Global hata yönetimi: ProblemDetails (RFC7807) + IExceptionHandler
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<Iroh.Infrastructure.GlobalExceptionHandler>();
+
 // Servis Kayıtları
 builder.Services.AddScoped<TableService>();
 builder.Services.AddScoped<CompanyService>();
@@ -43,14 +47,18 @@ builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<BookingLogService>();
 builder.Services.AddScoped<PurchasePaymentService>();
 builder.Services.AddScoped<PurchaseService>();
+builder.Services.AddScoped<PackageService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ChildService>();
+builder.Services.AddScoped<SubscriptionService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // C# property'leri PascalCase; JSON çıktısı camelCase kalsın.
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -90,6 +98,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
+// Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

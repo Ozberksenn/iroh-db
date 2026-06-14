@@ -11,7 +11,7 @@ namespace Iroh.Models.DTOs.Dashboard
 
     public class DashboardOverviewDto
     {
-        public int totalChildren { get; set; }
+        public int totalBookings { get; set; }
         public int activeCurrently { get; set; }
         public decimal totalRevenue { get; set; }
         public decimal bookingRevenue { get; set; }
@@ -43,7 +43,7 @@ namespace Iroh.Models.DTOs.Dashboard
         public DateTime? checkIn { get; set; }
         public DateTime? checkOut { get; set; }
         public string status { get; set; } = string.Empty;
-        public int? price { get; set; }
+        public decimal? price { get; set; }
         public bool isSubscription { get; set; }
     }
 

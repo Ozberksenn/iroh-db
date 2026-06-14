@@ -53,7 +53,7 @@ namespace Iroh.Services
 
             response.overview = new DashboardOverviewDto
             {
-                totalChildren = totalBookings,
+                totalBookings = totalBookings,
                 activeCurrently = activeCurrently,
                 bookingRevenue = bookingRevenue,
                 purchaseRevenue = purchaseRevenue,
@@ -90,12 +90,12 @@ namespace Iroh.Services
                 .Select(c => new TopCustomerDto
                 {
                     id = c.id,
-                    name = c.name,
-                    // Note: TopCustomerDto in DashboardResponseDto uses 'name' and no 'lastName' field in the live SQL result mapping
-                    visitCount = _context.Booking.Count(b => b.child.parentId == c.id && b.startTime >= startDate && b.startTime <= endDate),
+                    name = c.name + " " + (c.lastName ?? ""),
+                    // proc: child silinmemiş + aralıkta TÜM bookings (sadece Completed değil!).
+                    visitCount = _context.Booking.Count(b => b.child != null && b.child.parentId == c.id && !b.child.isDeleted && b.startTime >= startDate && b.startTime <= endDate),
                     purchaseCount = _context.Purchase.Count(p => p.customerId == c.id && p.createdAt >= startDate && p.createdAt <= endDate),
-                    bookingSpent = _context.Booking.Where(b => b.child.parentId == c.id && b.startTime >= startDate && b.startTime <= endDate && b.status == BookingStatus.Completed && b.price.HasValue)
-                                    .Sum(b => (decimal)b.price!.Value),
+                    bookingSpent = _context.Booking.Where(b => b.child != null && b.child.parentId == c.id && !b.child.isDeleted && b.startTime >= startDate && b.startTime <= endDate)
+                                    .Sum(b => (decimal?)b.price ?? 0),
                     purchaseSpent = _context.Purchase.Where(p => p.customerId == c.id && p.createdAt >= startDate && p.createdAt <= endDate)
                                     .Sum(p => (decimal)p.price),
                 })
@@ -103,8 +103,10 @@ namespace Iroh.Services
                 .OrderByDescending(tc => tc.bookingSpent + tc.purchaseSpent)
                 .Take(10)
                 .ToListAsync();
-            
-            foreach(var tc in topCustomers) {
+
+            foreach (var tc in topCustomers)
+            {
+                tc.name = tc.name.Trim();
                 tc.totalSpent = tc.bookingSpent + tc.purchaseSpent;
             }
             response.topCustomers = topCustomers;
@@ -134,17 +136,17 @@ namespace Iroh.Services
                 purchaseRevenue = purchaseRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0
             }).ToList();
 
-            // 5. Busy Hours (fn_get_dashboard_busy_hours)
-            response.busyHoursChart = await _context.Booking
+            // 5. Busy Hours (fn_get_dashboard_busy_hours) — saat bucket'ı SQL'de (Istanbul TZ), format/sıra bellekte.
+            var busyRaw = await _context.Booking
                 .Where(b => b.startTime >= startDate && b.startTime <= endDate)
                 .GroupBy(b => b.startTime!.Value.Hour)
-                .Select(g => new BusyHourDto
-                {
-                    hour = g.Key.ToString("D2") + ":00",
-                    count = g.Count()
-                })
-                .OrderBy(g => g.hour)
+                .Select(g => new { Hour = g.Key, Count = g.Count() })
                 .ToListAsync();
+
+            response.busyHoursChart = busyRaw
+                .OrderBy(x => x.Hour)
+                .Select(x => new BusyHourDto { hour = x.Hour.ToString("D2") + ":00", count = x.Count })
+                .ToList();
 
             return response;
         }

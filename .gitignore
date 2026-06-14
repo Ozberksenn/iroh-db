@@ -74,3 +74,9 @@ Thumbs.db
 
 # User-specific files
 appsettings.Development.json
+
+# Claude Code çalışma/planlama dokümanları (commit edilmez)
+/CLAUDE.md
+/MIGRATION-PLAN.md
+/PARITY-REPORT.md
+/REFACTORING-REPORT.md
