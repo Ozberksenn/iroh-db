@@ -5,7 +5,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class BookingLogService
+    public interface IBookingLogService
+    {
+        Task<List<BookingLog>> GetAll();
+        Task<BookingLog> Create(BookingLog log);
+        Task<BookingLog?> GetById(int id);
+        Task<BookingLog> Update(int id, BookingLogUpdateDto dto);
+    }
+
+    public class BookingLogService : IBookingLogService
     {
         private readonly AppDbContext _context;
         public BookingLogService(AppDbContext context)

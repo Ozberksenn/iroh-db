@@ -3,7 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class PurchasePaymentService
+    public interface IPurchasePaymentService
+    {
+        Task<List<PurchasePayment>> GetAll();
+        Task<PurchasePayment> Create(PurchasePayment purchasePayment);
+    }
+
+    public class PurchasePaymentService : IPurchasePaymentService
     {
         private readonly AppDbContext _context;
         public PurchasePaymentService(AppDbContext context)

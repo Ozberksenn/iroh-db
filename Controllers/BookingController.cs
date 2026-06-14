@@ -12,10 +12,10 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class BookingController : ControllerBase
     {
-        private readonly BookingService _bookingService;
-        private readonly SubscriptionService _subscriptionService;
+        private readonly IBookingService _bookingService;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public BookingController(BookingService bookingService, SubscriptionService subscriptionService)
+        public BookingController(IBookingService bookingService, ISubscriptionService subscriptionService)
         {
             _bookingService = bookingService;
             _subscriptionService = subscriptionService;

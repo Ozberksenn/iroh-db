@@ -7,7 +7,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class PurchaseService
+    public interface IPurchaseService
+    {
+        Task<List<PurchaseListDto>> GetAll();
+        Purchase GetById(int id);
+        Task<List<CustomerPurchaseResultDto>> GetByCustomerId(int customerId);
+        Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(int purchaseId);
+        Task Create(Purchase purchase);
+        Task Update(PurchaseUpdateDto dto);
+        Task Delete(int id);
+    }
+
+    public class PurchaseService : IPurchaseService
     {
         private readonly AppDbContext _context;
         public PurchaseService(AppDbContext context)

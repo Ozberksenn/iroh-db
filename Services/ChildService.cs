@@ -6,14 +6,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class ChildService
+    public interface IChildService
+    {
+        Task<List<UnifiedSearchResultDto>> SearchUnified(string search);
+        Task<Child?> CreateChild(int parentId, string name, DateTime? birthDate);
+        Task<List<Child>> GetChildrenByParentId(int parentId);
+        Task UpdateChild(int id, string name, DateTime? birthDate);
+        Task DeleteChild(int id);
+        Task<Child?> GetById(int id);
+    }
+
+    public class ChildService : IChildService
     {
         private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 
         private readonly AppDbContext _context;
-        private readonly SubscriptionService _subscriptionService;
+        private readonly ISubscriptionService _subscriptionService;
 
-        public ChildService(AppDbContext context, SubscriptionService subscriptionService)
+        public ChildService(AppDbContext context, ISubscriptionService subscriptionService)
         {
             _context = context;
             _subscriptionService = subscriptionService;

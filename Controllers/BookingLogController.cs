@@ -13,9 +13,9 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class BookingLogController : ControllerBase
     {
-        private readonly BookingLogService _bookingLogService;
+        private readonly IBookingLogService _bookingLogService;
 
-        public BookingLogController(BookingLogService bookingLogService)
+        public BookingLogController(IBookingLogService bookingLogService)
         {
             _bookingLogService = bookingLogService;
         }

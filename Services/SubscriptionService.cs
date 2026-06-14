@@ -6,7 +6,13 @@ using Microsoft.EntityFrameworkCore;
 namespace Iroh.Services
 {
     // Billing / abonelik çekirdeği — vw_activebookings + fn_search_unified + fn_get_used_hours mantığının ortak C# karşılığı.
-    public class SubscriptionService
+    public interface ISubscriptionService
+    {
+        Task<Dictionary<int, SubscriptionService.ParentSubscription>> ComputeForParents(IReadOnlyCollection<int> parentIds);
+        Task<List<ActiveBookingDto>> GetActiveBookings();
+    }
+
+    public class SubscriptionService : ISubscriptionService
     {
         private readonly AppDbContext _context;
         public SubscriptionService(AppDbContext context)

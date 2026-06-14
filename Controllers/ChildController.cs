@@ -11,9 +11,9 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class ChildController : ControllerBase
     {
-        private readonly ChildService _childService;
+        private readonly IChildService _childService;
 
-        public ChildController(ChildService childService)
+        public ChildController(IChildService childService)
         {
             _childService = childService;
         }

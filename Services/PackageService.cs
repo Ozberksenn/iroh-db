@@ -4,7 +4,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class PackageService
+    public interface IPackageService
+    {
+        Task<List<Package>> GetAll();
+        Task<Package?> GetById(int id);
+        Task<Package> Create(Package package);
+        Task Update(Package package);
+        Task Delete(int id);
+    }
+
+    public class PackageService : IPackageService
     {
         private readonly AppDbContext _context;
 

@@ -5,7 +5,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class CompanyService
+    public interface ICompanyService
+    {
+        Task<List<Company>> GetAll();
+        Task<Company?> GetCompanyById(int id);
+        Task<Company> Update(CompanyUpdateDto dto);
+    }
+
+    public class CompanyService : ICompanyService
     {
         private readonly AppDbContext _context;
         public CompanyService(AppDbContext context)

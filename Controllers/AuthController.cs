@@ -10,10 +10,10 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
         private readonly IWebHostEnvironment _env;
 
-        public AuthController(AuthService authService, IWebHostEnvironment env)
+        public AuthController(IAuthService authService, IWebHostEnvironment env)
         {
             _authService = authService;
             _env = env;

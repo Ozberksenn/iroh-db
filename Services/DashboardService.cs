@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class DashboardService
+    public interface IDashboardService
+    {
+        Task<DashboardResponseDto> GetDashboardSummary(DateTime startDate, DateTime endDate);
+    }
+
+    public class DashboardService : IDashboardService
     {
         private readonly AppDbContext _context;
 

@@ -7,7 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class CustomerService
+    public interface ICustomerService
+    {
+        Task<Customer?> GetById(int id);
+        Task<Customer?> GetCustomerById(int id);
+        Task<PagedResult<CustomerListItemDto>> GetCustomers(string? status, int page, int size, string? name);
+        Task<Customer> Create(Customer customer);
+        Task<Customer> Update(CustomerUpdateDto dto);
+        Task<Customer> Delete(int id);
+    }
+
+    public class CustomerService : ICustomerService
     {
         private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 

@@ -12,9 +12,9 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class PurchaseController : ControllerBase
     {
-        private readonly PurchaseService _purchaseService;
+        private readonly IPurchaseService _purchaseService;
 
-        public PurchaseController(PurchaseService purchaseService)
+        public PurchaseController(IPurchaseService purchaseService)
         {
             _purchaseService = purchaseService;
         }

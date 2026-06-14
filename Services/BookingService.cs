@@ -7,7 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class BookingService
+    public interface IBookingService
+    {
+        Task<PagedResult<BookingListItemDto>> GetBookings(
+            int page, int size, string[]? status, string? name, string? mail,
+            int? customerId, int? childId, DateTime? startTime, DateTime? endTime, int? tableId);
+        Task<Booking?> GetById(int id);
+        Task<Booking> Create(Booking booking);
+        Task<Booking> Update(int id, BookingUpdateDto updatedBooking);
+    }
+
+    public class BookingService : IBookingService
     {
         private readonly AppDbContext _context;
         public BookingService(AppDbContext context)

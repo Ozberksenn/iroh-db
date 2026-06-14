@@ -12,9 +12,9 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class PackageController : ControllerBase
     {
-        private readonly PackageService _packageService;
+        private readonly IPackageService _packageService;
 
-        public PackageController(PackageService packageService)
+        public PackageController(IPackageService packageService)
         {
             _packageService = packageService;
         }

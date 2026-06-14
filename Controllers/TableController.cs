@@ -12,9 +12,9 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class TableController : ControllerBase
     {
-        private readonly TableService _tableService;
+        private readonly ITableService _tableService;
 
-        public TableController(TableService tableService)
+        public TableController(ITableService tableService)
         {
             _tableService = tableService;
         }

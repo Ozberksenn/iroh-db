@@ -9,7 +9,14 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Iroh.Services
 {
-    public class AuthService
+    public interface IAuthService
+    {
+        Task<AuthResponseDto?> Login(string mail, string password);
+        Task<AuthResponseDto?> RefreshToken(string refreshToken);
+        Task<User> Register(User user);
+    }
+
+    public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;

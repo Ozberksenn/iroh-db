@@ -5,7 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class TableService
+    public interface ITableService
+    {
+        Task<List<TableDto>> GetAll(string? name);
+        Task<Table> Create(Table table);
+        Task<Table> Update(TableUpdateDto dto);
+        Task Delete(int id);
+        Task<Table?> GetById(int id);
+    }
+
+    public class TableService : ITableService
     {
         private readonly AppDbContext _context;
         public TableService(AppDbContext context)

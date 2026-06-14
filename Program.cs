@@ -43,18 +43,18 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<Iroh.Infrastructure.GlobalExceptionHandler>();
 
 // Servis Kayıtları
-builder.Services.AddScoped<TableService>();
-builder.Services.AddScoped<CompanyService>();
-builder.Services.AddScoped<CustomerService>();
-builder.Services.AddScoped<BookingService>();
-builder.Services.AddScoped<BookingLogService>();
-builder.Services.AddScoped<PurchasePaymentService>();
-builder.Services.AddScoped<PurchaseService>();
-builder.Services.AddScoped<PackageService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<DashboardService>();
-builder.Services.AddScoped<ChildService>();
-builder.Services.AddScoped<SubscriptionService>();
+builder.Services.AddScoped<ITableService, TableService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IBookingLogService, BookingLogService>();
+builder.Services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
+builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddScoped<IPackageService, PackageService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IChildService, ChildService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 builder.Services.AddControllers(options =>
     {
