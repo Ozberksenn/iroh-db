@@ -12,7 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // JWT Ayarlarını oku
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "IrohManagementSystemSuperSecretKeyWithAtLeast32Characters";
+var secretKey = jwtSettings["SecretKey"]
+    ?? throw new InvalidOperationException("JwtSettings:SecretKey yapılandırılmamış (appsettings.Development.json veya ortam değişkeni).");
 
 // Authentication ve JWT Bearer servisini ekle
 builder.Services.AddAuthentication(options =>
@@ -24,12 +25,14 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false, // Geçici olarak kapattık
-        ValidateAudience = false, // Geçici olarak kapattık
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-        ClockSkew = TimeSpan.FromMinutes(5) // Daha fazla tolerans verdik
+        ClockSkew = TimeSpan.FromMinutes(1)
     };
 });
 

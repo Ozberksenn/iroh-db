@@ -11,10 +11,12 @@ namespace Iroh.Controllers
     public class AuthController : ControllerBase
     {
         private readonly AuthService _authService;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(AuthService authService)
+        public AuthController(AuthService authService, IWebHostEnvironment env)
         {
             _authService = authService;
+            _env = env;
         }
 
         [HttpPost("login")]
@@ -82,11 +84,13 @@ namespace Iroh.Controllers
 
         private void SetRefreshTokenCookie(string refreshToken)
         {
+            var isDev = _env.IsDevelopment();
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true, // TODO(B6/P5): ortama göre ayarla
-                SameSite = SameSiteMode.None,
+                // Prod (HTTPS, cross-site): Secure + SameSite=None. Dev (HTTP): Secure=false + Lax ki cookie set edilebilsin.
+                Secure = !isDev,
+                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.None,
                 Expires = DateTime.UtcNow.AddDays(7)
             };
             Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
