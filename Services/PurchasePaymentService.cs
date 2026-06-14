@@ -12,7 +12,7 @@ namespace Iroh.Services
         }
 
         public async Task<List<PurchasePayment>> GetAll() =>
-            await _context.PurchasePayments.ToListAsync();
+            await _context.PurchasePayments.AsNoTracking().ToListAsync();
 
         public async Task<PurchasePayment> Create(PurchasePayment purchasePayment)
         {

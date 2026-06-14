@@ -45,6 +45,7 @@ namespace Iroh.Services
         public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
         {
             var purchases = await _context.Purchases
+                .AsNoTracking()
                 .Where(p => p.customerId == customerId)
                 .OrderByDescending(p => p.createdAt)
                 .ToListAsync();
@@ -52,6 +53,7 @@ namespace Iroh.Services
 
             var purchaseIds = purchases.Select(p => p.id).ToList();
             var payments = await _context.PurchasePayments
+                .AsNoTracking()
                 .Where(pp => purchaseIds.Contains(pp.purchaseId))
                 .ToListAsync();
             var linked = await _context.PurchaseBookings

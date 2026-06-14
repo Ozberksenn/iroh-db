@@ -19,7 +19,7 @@ namespace Iroh.Services
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
         public async Task<Customer?> GetById(int id) =>
-            await _context.Customers.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
+            await _context.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
 
         // Update/Delete'in iç kullanımı — soft-delete filtresi uygulamaz.
         public async Task<Customer?> GetCustomerById(int id) =>

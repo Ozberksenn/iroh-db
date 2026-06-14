@@ -12,7 +12,7 @@ namespace Iroh.Services
         }
 
         public async Task<List<Company>> GetAll() =>
-            await _context.Companies.ToListAsync();
+            await _context.Companies.AsNoTracking().ToListAsync();
 
         public async Task<Company?> GetCompanyById(int id) =>
             await _context.Companies.FirstOrDefaultAsync(c => c.id == id);

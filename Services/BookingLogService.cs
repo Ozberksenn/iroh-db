@@ -13,6 +13,7 @@ namespace Iroh.Services
 
         public async Task<List<BookingLog>> GetAll() =>
             await _context.BookingLogs
+                .AsNoTracking()
                 .Include(b => b.booking)
                 .OrderByDescending(b => b.time)
                 .ToListAsync();

@@ -104,6 +104,7 @@ namespace Iroh.Services
 
         public async Task<Booking?> GetById(int id) =>
             await _context.Bookings
+                .AsNoTracking()
                 .Include(b => b.table)
                 .Include(b => b.child)
                     .ThenInclude(c => c.parent)

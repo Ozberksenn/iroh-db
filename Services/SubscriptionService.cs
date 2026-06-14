@@ -34,9 +34,9 @@ namespace Iroh.Services
             var result = new Dictionary<int, ParentSubscription>();
             if (parentIds.Count == 0) return result;
 
-            var purchases = await _context.Purchases.Where(p => parentIds.Contains(p.customerId)).ToListAsync();
+            var purchases = await _context.Purchases.AsNoTracking().Where(p => parentIds.Contains(p.customerId)).ToListAsync();
             var purchaseIds = purchases.Select(p => p.id).ToList();
-            var payments = await _context.PurchasePayments.Where(pp => purchaseIds.Contains(pp.purchaseId)).ToListAsync();
+            var payments = await _context.PurchasePayments.AsNoTracking().Where(pp => purchaseIds.Contains(pp.purchaseId)).ToListAsync();
             var linked = await _context.PurchaseBookings
                 .Where(pb => purchaseIds.Contains(pb.purchaseId))
                 .Join(_context.Bookings, pb => pb.bookingId, b => b.id,
@@ -92,6 +92,7 @@ namespace Iroh.Services
         public async Task<List<ActiveBookingDto>> GetActiveBookings()
         {
             var bookings = await _context.Bookings
+                .AsNoTracking()
                 .Include(b => b.table)
                 .Include(b => b.child).ThenInclude(ch => ch.parent)
                 .Include(b => b.logs)
