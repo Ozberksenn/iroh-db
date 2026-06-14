@@ -24,17 +24,17 @@ namespace Iroh.Services
             return await query.Select(t => new TableDto { id = t.id, name = t.name }).ToListAsync();
         }
 
-        public Table Create(Table table)
+        public async Task<Table> Create(Table table)
         {
             _context.Table.Add(table);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return table;
         }
 
-        public Table Update(Table table)
+        public async Task<Table> Update(Table table)
         {
             _context.Table.Update(table);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return table;
         }
 
@@ -55,9 +55,7 @@ namespace Iroh.Services
             }
         }
 
-        public Table? GetById(int id)
-        {
-            return _context.Table.FirstOrDefault(t => t.id == id && !t.isDeleted);
-        }
+        public async Task<Table?> GetById(int id) =>
+            await _context.Table.FirstOrDefaultAsync(t => t.id == id && !t.isDeleted);
     }
 }

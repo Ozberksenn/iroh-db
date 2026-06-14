@@ -1,5 +1,5 @@
-
 using Iroh.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
@@ -10,18 +10,17 @@ namespace Iroh.Services
         {
             _context = context;
         }
-        public List<Company> GetAll()
-        {
-            return _context.Company.ToList();
-        }
-        public Company? GetCompanyById(int id)
-        {
-            return _context.Company.FirstOrDefault(c => c.id == id);
-        }
-        public Company Update(Company company)
+
+        public async Task<List<Company>> GetAll() =>
+            await _context.Company.ToListAsync();
+
+        public async Task<Company?> GetCompanyById(int id) =>
+            await _context.Company.FirstOrDefaultAsync(c => c.id == id);
+
+        public async Task<Company> Update(Company company)
         {
             _context.Company.Update(company);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return company;
         }
     }

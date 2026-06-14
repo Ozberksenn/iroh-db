@@ -20,14 +20,14 @@ namespace Iroh.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            var purchasePayments = _purchasePaymentService.GetAll();
+            var purchasePayments = await _purchasePaymentService.GetAll();
             return Ok(ApiResponse.Ok(purchasePayments, "Başarılı"));
         }
 
         [HttpPost]
-        public IActionResult Create(PurchasePaymentCreateDto dto)
+        public async Task<IActionResult> Create(PurchasePaymentCreateDto dto)
         {
             var purchasePayment = new PurchasePayment
             {
@@ -35,7 +35,7 @@ namespace Iroh.Controllers
                 price = dto.price,
                 purchaseId = dto.purchaseId
             };
-            _purchasePaymentService.Create(purchasePayment);
+            await _purchasePaymentService.Create(purchasePayment);
             return Ok(ApiResponse.Ok(purchasePayment, "Başarıyla oluşturuldu"));
         }
     }

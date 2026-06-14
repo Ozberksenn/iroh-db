@@ -4,6 +4,7 @@ using System.Text;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
 using Iroh.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Iroh.Services
@@ -19,9 +20,9 @@ namespace Iroh.Services
             _configuration = configuration;
         }
 
-        public AuthResponseDto? Login(string mail, string password)
+        public async Task<AuthResponseDto?> Login(string mail, string password)
         {
-            var user = _context.User.FirstOrDefault(u => u.mail == mail && u.isActive);
+            var user = await _context.User.FirstOrDefaultAsync(u => u.mail == mail && u.isActive);
             
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.password))
             {
@@ -31,7 +32,7 @@ namespace Iroh.Services
             return GenerateAuthResponse(user);
         }
 
-        public AuthResponseDto? RefreshToken(string refreshToken)
+        public async Task<AuthResponseDto?> RefreshToken(string refreshToken)
         {
             try
             {
@@ -54,7 +55,7 @@ namespace Iroh.Services
                 var jwtToken = (JwtSecurityToken)validatedToken;
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == JwtRegisteredClaimNames.Sub).Value);
 
-                var user = _context.User.FirstOrDefault(u => u.id == userId && u.isActive);
+                var user = await _context.User.FirstOrDefaultAsync(u => u.id == userId && u.isActive);
                 if (user == null) return null;
 
                 return GenerateAuthResponse(user);
@@ -65,9 +66,9 @@ namespace Iroh.Services
             }
         }
 
-        public User Register(User user)
+        public async Task<User> Register(User user)
         {
-            if (_context.User.Any(u => u.mail == user.mail))
+            if (await _context.User.AnyAsync(u => u.mail == user.mail))
             {
                 throw new BusinessRuleException("Bu e-posta adresi zaten kullanımda!");
             }
@@ -76,7 +77,7 @@ namespace Iroh.Services
             user.isActive = true;
 
             _context.User.Add(user);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return user;
         }
 

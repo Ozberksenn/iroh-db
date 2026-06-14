@@ -21,14 +21,14 @@ namespace Iroh.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            var bookingLogs = _bookingLogService.GetAll();
+            var bookingLogs = await _bookingLogService.GetAll();
             return Ok(ApiResponse.Ok(bookingLogs, "Başarılı"));
         }
 
         [HttpPost]
-        public IActionResult Create(BookingLogInsertDto dto)
+        public async Task<IActionResult> Create(BookingLogInsertDto dto)
         {
             var bookingLog = new BookingLog
             {
@@ -37,14 +37,14 @@ namespace Iroh.Controllers
                 type = dto.type,
                 userId = dto.userId
             };
-            var result = _bookingLogService.Create(bookingLog);
+            var result = await _bookingLogService.Create(bookingLog);
             return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Oluşturuldu."));
         }
 
         [HttpPut("{id}")]
-        public IActionResult Update(int id, [FromBody] BookingLogUpdateDto dto)
+        public async Task<IActionResult> Update(int id, [FromBody] BookingLogUpdateDto dto)
         {
-            var bookingLog = _bookingLogService.GetById(id);
+            var bookingLog = await _bookingLogService.GetById(id);
             if (bookingLog == null)
             {
                 throw new NotFoundException("Kayıt bulunamadı");
@@ -55,7 +55,7 @@ namespace Iroh.Controllers
             bookingLog.type = dto.type;
             bookingLog.userId = dto.userId;
 
-            var result = _bookingLogService.Update(bookingLog);
+            var result = await _bookingLogService.Update(bookingLog);
             return Ok(ApiResponse.Ok(result, "Booking Log Başarıyla Güncellendi."));
         }
     }

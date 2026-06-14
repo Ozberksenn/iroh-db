@@ -102,25 +102,23 @@ namespace Iroh.Services
             };
         }
 
-        public Booking? GetById(int id)
-        {
-            return _context.Booking
+        public async Task<Booking?> GetById(int id) =>
+            await _context.Booking
                 .Include(b => b.table)
                 .Include(b => b.child)
                     .ThenInclude(c => c.parent)
-                .FirstOrDefault(b => b.id == id);
-        }
+                .FirstOrDefaultAsync(b => b.id == id);
 
-        public Booking Create(Booking booking)
+        public async Task<Booking> Create(Booking booking)
         {
             _context.Booking.Add(booking);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return booking;
         }
 
-        public Booking Update(int id, BookingUpdateDto updatedBooking)
+        public async Task<Booking> Update(int id, BookingUpdateDto updatedBooking)
         {
-            var existingBooking = _context.Booking.Find(id);
+            var existingBooking = await _context.Booking.FindAsync(id);
             if (existingBooking == null)
             {
                 throw new NotFoundException("Kayıt bulunamadı");
@@ -139,7 +137,7 @@ namespace Iroh.Services
             // Eğer bir paket (Purchase) kullanılıyorsa, onu da bağla (usp_update_booking logic)
             if (updatedBooking.purchaseId.HasValue)
             {
-                var exists = _context.purchaseBookings.Any(pb => pb.bookingId == existingBooking.id && pb.purchaseId == updatedBooking.purchaseId.Value);
+                var exists = await _context.purchaseBookings.AnyAsync(pb => pb.bookingId == existingBooking.id && pb.purchaseId == updatedBooking.purchaseId.Value);
                 if (!exists)
                 {
                     _context.purchaseBookings.Add(new PurchaseBooking
@@ -150,7 +148,7 @@ namespace Iroh.Services
                 }
             }
 
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return existingBooking;
         }
     }

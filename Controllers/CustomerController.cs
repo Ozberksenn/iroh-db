@@ -42,7 +42,7 @@ namespace Iroh.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(CustomerCreateDto customerCreateDto)
+        public async Task<IActionResult> Create(CustomerCreateDto customerCreateDto)
         {
             var customer = new Customer
             {
@@ -51,14 +51,14 @@ namespace Iroh.Controllers
                 phone = customerCreateDto.phone,
                 mail = customerCreateDto.mail
             };
-            var createdCustomer = _customerService.Create(customer);
+            var createdCustomer = await _customerService.Create(customer);
             return Ok(ApiResponse.Ok(createdCustomer, "Müşteri başarıyla oluşturuldu"));
         }
 
         [HttpPut]
-        public IActionResult Update([FromBody] CustomerUpdateDto customerUpdateDto)
+        public async Task<IActionResult> Update([FromBody] CustomerUpdateDto customerUpdateDto)
         {
-            var customer = _customerService.GetCustomerById(customerUpdateDto.id);
+            var customer = await _customerService.GetCustomerById(customerUpdateDto.id);
             if (customer == null)
             {
                 throw new NotFoundException("Müşteri bulunamadı");
@@ -69,21 +69,21 @@ namespace Iroh.Controllers
             customer.phone = customerUpdateDto.phone;
             customer.mail = customerUpdateDto.mail;
 
-            var updatedCustomer = _customerService.Update(customer);
+            var updatedCustomer = await _customerService.Update(customer);
             return Ok(ApiResponse.Ok(updatedCustomer, "Müşteri başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var customer = _customerService.GetCustomerById(id);
+            var customer = await _customerService.GetCustomerById(id);
             if (customer == null)
             {
                 throw new NotFoundException("Müşteri bulunamadı");
             }
 
             // Aktif oturum / sistem misafiri → servis BusinessRuleException atar → handler 400.
-            var deletedCustomer = _customerService.Delete(customer);
+            var deletedCustomer = await _customerService.Delete(customer);
             return Ok(ApiResponse.Ok(deletedCustomer, "Müşteri başarıyla silindi"));
         }
     }

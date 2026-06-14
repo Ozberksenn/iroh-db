@@ -1,4 +1,5 @@
 using Iroh.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
@@ -9,17 +10,15 @@ namespace Iroh.Services
         {
             _context = context;
         }
-        public List<PurchasePayment> GetAll()
-        {
-            return _context.purchasePayments.ToList();
-        }
 
-        public PurchasePayment Create(PurchasePayment purchasePayment)
+        public async Task<List<PurchasePayment>> GetAll() =>
+            await _context.purchasePayments.ToListAsync();
+
+        public async Task<PurchasePayment> Create(PurchasePayment purchasePayment)
         {
             _context.purchasePayments.Add(purchasePayment);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return purchasePayment;
         }
-
     }
 }

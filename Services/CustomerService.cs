@@ -18,19 +18,14 @@ namespace Iroh.Services
         }
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
-        public async Task<Customer?> GetById(int id)
-        {
-            return await _context.Customer.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
-        }
+        public async Task<Customer?> GetById(int id) =>
+            await _context.Customer.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
 
         // Update/Delete'in iç kullanımı — soft-delete filtresi uygulamaz.
-        public Customer? GetCustomerById(int id)
-        {
-            return _context.Customer.FirstOrDefault(c => c.id == id);
-        }
+        public async Task<Customer?> GetCustomerById(int id) =>
+            await _context.Customer.FirstOrDefaultAsync(c => c.id == id);
 
         // fn_get_customers paritesi: hesaplanmış abone statüsü + serbest metin arama + sayfalama.
-        // status: aktif (now BETWEEN start/end) paketi olan -> ActiveSubscriber; herhangi paketi olan -> Subscriber; yoksa -> Customer.
         public async Task<PagedResult<CustomerListItemDto>> GetCustomers(string? status, int page, int size, string? name)
         {
             var now = DateTime.UtcNow;
@@ -93,14 +88,14 @@ namespace Iroh.Services
             };
         }
 
-        public Customer Create(Customer customer)
+        public async Task<Customer> Create(Customer customer)
         {
             _context.Customer.Add(customer);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return customer;
         }
 
-        public Customer Update(Customer customer)
+        public async Task<Customer> Update(Customer customer)
         {
             if (customer.id == SystemGuestId)
             {
@@ -109,11 +104,11 @@ namespace Iroh.Services
 
             customer.updatedAt = DateTime.UtcNow;
             _context.Customer.Update(customer);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return customer;
         }
 
-        public Customer Delete(Customer customer)
+        public async Task<Customer> Delete(Customer customer)
         {
             if (customer.id == SystemGuestId)
             {
@@ -121,8 +116,8 @@ namespace Iroh.Services
             }
 
             // Aktif/Beklemede oturumu olan bir çocuk varsa engelle.
-            var hasActiveBooking = _context.Booking
-                .Any(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
+            var hasActiveBooking = await _context.Booking
+                .AnyAsync(b => _context.Children.Any(ch => ch.parentId == customer.id && ch.id == b.childId)
                           && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
 
             if (hasActiveBooking)
@@ -131,7 +126,7 @@ namespace Iroh.Services
             }
 
             // Çocukları cascade soft-delete.
-            var children = _context.Children.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToList();
+            var children = await _context.Children.Where(ch => ch.parentId == customer.id && !ch.isDeleted).ToListAsync();
             foreach (var child in children)
             {
                 child.isDeleted = true;
@@ -142,7 +137,7 @@ namespace Iroh.Services
             customer.updatedAt = DateTime.UtcNow;
 
             _context.Customer.Update(customer);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
             return customer;
         }
     }

@@ -48,7 +48,7 @@ namespace Iroh.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(BookingCreateDto bookingCreateDto)
+        public async Task<IActionResult> Create(BookingCreateDto bookingCreateDto)
         {
             var booking = new Booking
             {
@@ -60,15 +60,15 @@ namespace Iroh.Controllers
                 childId = bookingCreateDto.childId,
                 note = bookingCreateDto.note
             };
-            var createdBooking = _bookingService.Create(booking);
+            var createdBooking = await _bookingService.Create(booking);
             return Ok(ApiResponse.Ok(createdBooking, "Başarılı"));
         }
 
         [HttpPut]
-        public IActionResult Update(BookingUpdateDto bookingUpdateDto)
+        public async Task<IActionResult> Update(BookingUpdateDto bookingUpdateDto)
         {
             // Kayıt yoksa servis NotFoundException atar → handler 404.
-            var updated = _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
+            var updated = await _bookingService.Update(bookingUpdateDto.id, bookingUpdateDto);
             return Ok(ApiResponse.Ok(updated, "Başarılı"));
         }
     }

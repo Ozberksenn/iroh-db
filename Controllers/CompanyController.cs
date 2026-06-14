@@ -20,16 +20,16 @@ namespace Iroh.Controllers
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            var companies = _companyService.GetAll();
+            var companies = await _companyService.GetAll();
             return Ok(ApiResponse.Ok(companies, "Başarılı"));
         }
 
         [HttpPut]
-        public IActionResult Update(CompanyUpdateDto dto)
+        public async Task<IActionResult> Update(CompanyUpdateDto dto)
         {
-            var company = _companyService.GetCompanyById(dto.id);
+            var company = await _companyService.GetCompanyById(dto.id);
             if (company == null)
             {
                 throw new NotFoundException("Şirket bulunamadı");
@@ -39,7 +39,7 @@ namespace Iroh.Controllers
             company.firstHourPrice = dto.firstHourPrice;
             company.additionalHalfHourPrice = dto.additionalHalfHourPrice;
 
-            _companyService.Update(company);
+            await _companyService.Update(company);
             return Ok(ApiResponse.Ok(company, "Bilgiler Başarıyla Güncellendi."));
         }
     }

@@ -29,24 +29,24 @@ namespace Iroh.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(TableCreateDto tableCreateDto)
+        public async Task<IActionResult> Create(TableCreateDto tableCreateDto)
         {
             var table = new Table { name = tableCreateDto.name };
-            var createdTable = _tableService.Create(table);
+            var createdTable = await _tableService.Create(table);
             return Ok(ApiResponse.Ok(createdTable, "Masa başarıyla oluşturuldu"));
         }
 
         [HttpPut]
-        public IActionResult Update(TableUpdateDto tableUpdateDto)
+        public async Task<IActionResult> Update(TableUpdateDto tableUpdateDto)
         {
-            var table = _tableService.GetById(tableUpdateDto.id);
+            var table = await _tableService.GetById(tableUpdateDto.id);
             if (table == null)
             {
                 throw new NotFoundException("Masa bulunamadı");
             }
             table.name = tableUpdateDto.name;
 
-            var updatedTable = _tableService.Update(table);
+            var updatedTable = await _tableService.Update(table);
             return Ok(ApiResponse.Ok(updatedTable, "Masa başarıyla güncellendi"));
         }
 

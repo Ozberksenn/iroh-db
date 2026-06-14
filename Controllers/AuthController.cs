@@ -20,9 +20,9 @@ namespace Iroh.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginDto loginDto)
+        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var authResponse = _authService.Login(loginDto.mail, loginDto.password);
+            var authResponse = await _authService.Login(loginDto.mail, loginDto.password);
             if (authResponse == null)
             {
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "E-posta veya şifre hatalı!");
@@ -33,7 +33,7 @@ namespace Iroh.Controllers
         }
 
         [HttpPost("refresh")]
-        public IActionResult Refresh([FromBody] RefreshTokenDto refreshTokenDto)
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto refreshTokenDto)
         {
             string? token = refreshTokenDto.refreshToken;
             if (string.IsNullOrEmpty(token))
@@ -46,7 +46,7 @@ namespace Iroh.Controllers
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Refresh token bulunamadı!");
             }
 
-            var authResponse = _authService.RefreshToken(token);
+            var authResponse = await _authService.RefreshToken(token);
             if (authResponse == null)
             {
                 return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Geçersiz veya süresi dolmuş token!");
@@ -57,10 +57,10 @@ namespace Iroh.Controllers
         }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] UserRegisterDto registerDto)
+        public async Task<IActionResult> Register([FromBody] UserRegisterDto registerDto)
         {
             // Dup e-posta → AuthService BusinessRuleException atar → handler 400 ProblemDetails.
-            var createdUser = _authService.Register(new User
+            var createdUser = await _authService.Register(new User
             {
                 name = registerDto.name,
                 lastname = registerDto.lastName,
