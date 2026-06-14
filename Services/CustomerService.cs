@@ -95,21 +95,31 @@ namespace Iroh.Services
             return customer;
         }
 
-        public async Task<Customer> Update(Customer customer)
+        public async Task<Customer> Update(CustomerUpdateDto dto)
         {
+            var customer = await GetCustomerById(dto.id)
+                ?? throw new NotFoundException("Müşteri bulunamadı");
+
             if (customer.id == SystemGuestId)
             {
                 throw new BusinessRuleException("Sistem Misafiri kaydı değiştirilemez!");
             }
 
+            customer.name = dto.name;
+            customer.lastName = dto.lastName;
+            customer.phone = dto.phone;
+            customer.mail = dto.mail;
+
             customer.updatedAt = DateTime.UtcNow;
-            _context.Customers.Update(customer);
             await _context.SaveChangesAsync();
             return customer;
         }
 
-        public async Task<Customer> Delete(Customer customer)
+        public async Task<Customer> Delete(int id)
         {
+            var customer = await GetCustomerById(id)
+                ?? throw new NotFoundException("Müşteri bulunamadı");
+
             if (customer.id == SystemGuestId)
             {
                 throw new BusinessRuleException("Sistem Misafiri kaydı silinemez!");

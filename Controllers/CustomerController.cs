@@ -58,32 +58,16 @@ namespace Iroh.Controllers
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] CustomerUpdateDto customerUpdateDto)
         {
-            var customer = await _customerService.GetCustomerById(customerUpdateDto.id);
-            if (customer == null)
-            {
-                throw new NotFoundException("Müşteri bulunamadı");
-            }
-
-            customer.name = customerUpdateDto.name;
-            customer.lastName = customerUpdateDto.lastName;
-            customer.phone = customerUpdateDto.phone;
-            customer.mail = customerUpdateDto.mail;
-
-            var updatedCustomer = await _customerService.Update(customer);
+            // Kayıt yoksa servis NotFoundException, sistem misafiri ise BusinessRuleException atar.
+            var updatedCustomer = await _customerService.Update(customerUpdateDto);
             return Ok(ApiResponse.Ok(CustomerDto.From(updatedCustomer), "Müşteri başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var customer = await _customerService.GetCustomerById(id);
-            if (customer == null)
-            {
-                throw new NotFoundException("Müşteri bulunamadı");
-            }
-
-            // Aktif oturum / sistem misafiri → servis BusinessRuleException atar → handler 400.
-            var deletedCustomer = await _customerService.Delete(customer);
+            // Kayıt yok → 404; aktif oturum / sistem misafiri → 400 (servis fırlatır).
+            var deletedCustomer = await _customerService.Delete(id);
             return Ok(ApiResponse.Ok(CustomerDto.From(deletedCustomer), "Müşteri başarıyla silindi"));
         }
     }

@@ -1,3 +1,5 @@
+using Iroh.Exceptions;
+using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,9 +30,16 @@ namespace Iroh.Services
         public async Task<BookingLog?> GetById(int id) =>
             await _context.BookingLogs.FindAsync(id);
 
-        public async Task<BookingLog> Update(BookingLog log)
+        public async Task<BookingLog> Update(int id, BookingLogUpdateDto dto)
         {
-            _context.BookingLogs.Update(log);
+            var log = await GetById(id)
+                ?? throw new NotFoundException("Kayıt bulunamadı");
+
+            log.bookingId = dto.bookingId;
+            log.time = dto.time;
+            log.type = dto.type;
+            log.userId = dto.userId;
+
             await _context.SaveChangesAsync();
             return log;
         }

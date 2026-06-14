@@ -31,9 +31,12 @@ namespace Iroh.Services
             return table;
         }
 
-        public async Task<Table> Update(Table table)
+        public async Task<Table> Update(TableUpdateDto dto)
         {
-            _context.Tables.Update(table);
+            var table = await GetById(dto.id)
+                ?? throw new NotFoundException("Masa bulunamadı");
+
+            table.name = dto.name;
             await _context.SaveChangesAsync();
             return table;
         }

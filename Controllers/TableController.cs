@@ -1,4 +1,3 @@
-using Iroh.Exceptions;
 using Iroh.Models.DTOs.Table;
 using Iroh.Models.Entities;
 using Iroh.Models.Responses;
@@ -39,14 +38,8 @@ namespace Iroh.Controllers
         [HttpPut]
         public async Task<IActionResult> Update(TableUpdateDto tableUpdateDto)
         {
-            var table = await _tableService.GetById(tableUpdateDto.id);
-            if (table == null)
-            {
-                throw new NotFoundException("Masa bulunamadı");
-            }
-            table.name = tableUpdateDto.name;
-
-            var updatedTable = await _tableService.Update(table);
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var updatedTable = await _tableService.Update(tableUpdateDto);
             return Ok(ApiResponse.Ok(new TableDto { id = updatedTable.id, name = updatedTable.name }, "Masa başarıyla güncellendi"));
         }
 

@@ -1,4 +1,3 @@
-using Iroh.Exceptions;
 using Iroh.Models.DTOs.Company;
 using Iroh.Models.Responses;
 using Iroh.Services;
@@ -29,17 +28,8 @@ namespace Iroh.Controllers
         [HttpPut]
         public async Task<IActionResult> Update(CompanyUpdateDto dto)
         {
-            var company = await _companyService.GetCompanyById(dto.id);
-            if (company == null)
-            {
-                throw new NotFoundException("Şirket bulunamadı");
-            }
-
-            company.name = dto.name;
-            company.firstHourPrice = dto.firstHourPrice;
-            company.additionalHalfHourPrice = dto.additionalHalfHourPrice;
-
-            await _companyService.Update(company);
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var company = await _companyService.Update(dto);
             return Ok(ApiResponse.Ok(CompanyDto.From(company), "Bilgiler Başarıyla Güncellendi."));
         }
     }

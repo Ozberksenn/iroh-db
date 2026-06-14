@@ -1,4 +1,3 @@
-using Iroh.Exceptions;
 using Iroh.Models.DTOs.Booking;
 using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
@@ -45,18 +44,8 @@ namespace Iroh.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] BookingLogUpdateDto dto)
         {
-            var bookingLog = await _bookingLogService.GetById(id);
-            if (bookingLog == null)
-            {
-                throw new NotFoundException("Kayıt bulunamadı");
-            }
-
-            bookingLog.bookingId = dto.bookingId;
-            bookingLog.time = dto.time;
-            bookingLog.type = dto.type;
-            bookingLog.userId = dto.userId;
-
-            var result = await _bookingLogService.Update(bookingLog);
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var result = await _bookingLogService.Update(id, dto);
             return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Güncellendi."));
         }
     }
