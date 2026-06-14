@@ -56,7 +56,12 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<ChildService>();
 builder.Services.AddScoped<SubscriptionService>();
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Route token'ları kebab-case: /api/booking-log, /api/purchase-payment (C3)
+        options.Conventions.Add(new Microsoft.AspNetCore.Mvc.ApplicationModels.RouteTokenTransformerConvention(
+            new Iroh.Infrastructure.KebabCaseParameterTransformer()));
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;

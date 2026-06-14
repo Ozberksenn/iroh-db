@@ -8,7 +8,7 @@ namespace Iroh.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("api/packages")]
+    [Route("api/[controller]")]
     public class PackageController : ControllerBase
     {
         private readonly PackageService _packageService;
