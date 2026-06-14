@@ -8,16 +8,16 @@ namespace Iroh.Models.DTOs.Child
 
     public class ChildUpdateDto
     {
-        public long id { get; set; }
+        public int id { get; set; }
         public required string name { get; set; }
         public DateTime? birthDate { get; set; }
     }
 
     public class UnifiedSearchResultDto
     {
-        public long child_id { get; set; }
+        public int child_id { get; set; }
         public string child_name { get; set; } = string.Empty;
-        public long parent_id { get; set; }
+        public int parent_id { get; set; }
         public string parent_name { get; set; } = string.Empty;
         public string parent_phone { get; set; } = string.Empty;
         public string status { get; set; } = string.Empty;

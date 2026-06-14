@@ -26,7 +26,7 @@ namespace Iroh.Controllers
         }
 
         [HttpPost("customers/{parentId}")]
-        public async Task<IActionResult> Create(long parentId, [FromBody] ChildCreateDto dto)
+        public async Task<IActionResult> Create(int parentId, [FromBody] ChildCreateDto dto)
         {
             // Sistem misafiri → servis BusinessRuleException atar → handler 400.
             var child = await _childService.CreateChild(parentId, dto.name, dto.birthDate);
@@ -34,7 +34,7 @@ namespace Iroh.Controllers
         }
 
         [HttpGet("customers/{parentId}")]
-        public async Task<IActionResult> GetByParent(long parentId)
+        public async Task<IActionResult> GetByParent(int parentId)
         {
             var children = await _childService.GetChildrenByParentId(parentId);
             return Ok(ApiResponse.Ok(children, "Başarılı"));
@@ -48,7 +48,7 @@ namespace Iroh.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> Delete(int id)
         {
             await _childService.DeleteChild(id);
             return Ok(ApiResponse.Ok<object?>(null, "Çocuk başarıyla silindi"));

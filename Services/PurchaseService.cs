@@ -42,7 +42,7 @@ namespace Iroh.Services
         }
 
         // fn_get_purchase_by_customer_id: müşterinin paketleri + usedMinutes (DAKİKA) + gerçek payments listesi.
-        public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
+        public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(int customerId)
         {
             var purchases = await _context.Purchases
                 .AsNoTracking()
@@ -84,7 +84,7 @@ namespace Iroh.Services
 
         // usp_get_purchase_bookings_by_id: pakete bağlı bookings (nested booking). Proc INNER JOIN tables → sadece masası olanlar.
         // Proc'taki bozuk b.customerId (yok olan kolon) yerine customerId child.parentId'den türetilir (D7).
-        public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(long purchaseId)
+        public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(int purchaseId)
         {
             var rows = await _context.PurchaseBookings
                 .Where(pb => pb.purchaseId == purchaseId && pb.booking != null && pb.booking.tableId != null)
@@ -159,7 +159,7 @@ namespace Iroh.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task Delete(long id)
+        public async Task Delete(int id)
         {
             // Bu işlem güvenlik gereği engellenmiştir
             throw new BusinessRuleException("Güvenlik ve denetim gereği satın alım kayıtları silinemez! Yanlış bir işlem yaptıysanız lütfen ek ödeme (payment) ile bakiyeyi dengeleyin veya yöneticiye başvurun.");

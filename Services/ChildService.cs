@@ -97,7 +97,7 @@ namespace Iroh.Services
             .ToList();
         }
 
-        public async Task<Child?> CreateChild(long parentId, string name, DateTime? birthDate)
+        public async Task<Child?> CreateChild(int parentId, string name, DateTime? birthDate)
         {
             if (parentId == SystemGuestId)
             {
@@ -106,7 +106,7 @@ namespace Iroh.Services
 
             var child = new Child
             {
-                parentId = (int)parentId,
+                parentId = parentId,
                 name = name,
                 birthDate = birthDate ?? DateTime.MinValue,
                 isDeleted = false,
@@ -119,7 +119,7 @@ namespace Iroh.Services
             return child;
         }
 
-        public async Task<List<Child>> GetChildrenByParentId(long parentId)
+        public async Task<List<Child>> GetChildrenByParentId(int parentId)
         {
             return await _context.Children
                 .Where(c => c.parentId == parentId && !c.isDeleted)
@@ -127,7 +127,7 @@ namespace Iroh.Services
                 .ToListAsync();
         }
 
-        public async Task UpdateChild(long id, string name, DateTime? birthDate)
+        public async Task UpdateChild(int id, string name, DateTime? birthDate)
         {
             var child = await _context.Children.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
             if (child == null)
@@ -145,7 +145,7 @@ namespace Iroh.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteChild(long id)
+        public async Task DeleteChild(int id)
         {
             var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.childId == id && (b.status == BookingStatus.Active || b.status == BookingStatus.Paused));
             if (hasActiveBooking)
@@ -153,7 +153,7 @@ namespace Iroh.Services
                 throw new BusinessRuleException("Bu çocuğun şu an içeride aktif bir oturumu var. Oturum kapatılmadan silinemez!");
             }
 
-            var child = await _context.Children.FindAsync((int)id);
+            var child = await _context.Children.FindAsync(id);
             if (child == null)
             {
                 throw new NotFoundException("Çocuk bulunamadı!");
@@ -164,7 +164,7 @@ namespace Iroh.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Child?> GetById(long id)
+        public async Task<Child?> GetById(int id)
         {
             return await _context.Children.FirstOrDefaultAsync(c => c.id == id && !c.isDeleted);
         }

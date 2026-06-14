@@ -51,7 +51,7 @@ namespace Iroh.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> Delete(int id)
         {
             // Aktif rezervasyon → servis BusinessRuleException atar → handler 400.
             await _tableService.Delete(id);

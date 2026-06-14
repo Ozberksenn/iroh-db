@@ -27,14 +27,14 @@ namespace Iroh.Controllers
         }
 
         [HttpGet("customer")]
-        public async Task<IActionResult> GetByCustomer([FromQuery] long customerId)
+        public async Task<IActionResult> GetByCustomer([FromQuery] int customerId)
         {
             var results = await _purchaseService.GetByCustomerId(customerId);
             return Ok(ApiResponse.Ok(results, "Başarılı"));
         }
 
         [HttpGet("purchase-bookings-by-id")]
-        public async Task<IActionResult> GetPurchaseBookings([FromQuery] long purchaseId)
+        public async Task<IActionResult> GetPurchaseBookings([FromQuery] int purchaseId)
         {
             var results = await _purchaseService.GetPurchaseBookings(purchaseId);
             return Ok(ApiResponse.Ok(results, "Başarılı"));
@@ -64,7 +64,7 @@ namespace Iroh.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> Delete(int id)
         {
             // usp_delete_purchase davranışı: silme güvenlik gereği engelli → servis BusinessRuleException atar → 400.
             await _purchaseService.Delete(id);

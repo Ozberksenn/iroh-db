@@ -38,16 +38,16 @@ namespace Iroh.Services
             return table;
         }
 
-        public async Task Delete(long id)
+        public async Task Delete(int id)
         {
             // aktif booking kontrolü (usp_delete_table logic)
-            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.tableId == (int)id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
+            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.tableId == id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
             if (hasActiveBooking)
             {
                 throw new BusinessRuleException("Bu masaya ait aktif rezervasyon var. Silinemez!");
             }
 
-            var table = await _context.Tables.FindAsync((int)id);
+            var table = await _context.Tables.FindAsync(id);
             if (table != null)
             {
                 table.isDeleted = true;
