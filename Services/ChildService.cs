@@ -8,7 +8,7 @@ namespace Iroh.Services
 {
     public class ChildService
     {
-        private const int SystemGuestId = 999999;
+        private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 
         private readonly AppDbContext _context;
         private readonly SubscriptionService _subscriptionService;

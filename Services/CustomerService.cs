@@ -9,7 +9,7 @@ namespace Iroh.Services
 {
     public class CustomerService
     {
-        private const int SystemGuestId = 999999;
+        private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 
         private readonly AppDbContext _context;
         public CustomerService(AppDbContext context)

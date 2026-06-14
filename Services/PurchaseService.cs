@@ -1,6 +1,7 @@
 using Iroh.Models.Entities;
 using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.DTOs.Booking;
+using Iroh.Domain;
 using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
@@ -120,7 +121,7 @@ namespace Iroh.Services
 
         public async Task Create(Purchase purchase)
         {
-            if (purchase.customerId == 999999)
+            if (purchase.customerId == SystemConstants.GuestCustomerId)
             {
                 throw new BusinessRuleException("Sistem Misafiri kaydına paket tanımlanamaz!");
             }
@@ -129,28 +130,28 @@ namespace Iroh.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task Update(long id, decimal hours, decimal price, long customerId, DateTime? startDate, DateTime? endDate)
+        // usp_update_purchase: kullanım/ödeme varsa ana saat değiştirilemez.
+        public async Task Update(PurchaseUpdateDto dto)
         {
-            var purchase = await _context.Purchase.FindAsync((int)id);
+            var purchase = await _context.Purchase.FindAsync(dto.id);
             if (purchase == null)
             {
                 throw new NotFoundException("Paket bulunamadı!");
             }
 
-            // usp_update_purchase logic: check usage and payments
-            var hasUsage = await _context.purchaseBookings.AnyAsync(pb => pb.purchaseId == id);
-            var hasPayments = await _context.purchasePayments.AnyAsync(pp => pp.purchaseId == (int)id);
+            var hasUsage = await _context.purchaseBookings.AnyAsync(pb => pb.purchaseId == dto.id);
+            var hasPayments = await _context.purchasePayments.AnyAsync(pp => pp.purchaseId == dto.id);
 
-            if (purchase.hours != hours && (hasUsage || hasPayments))
+            if (purchase.hours != dto.hours && (hasUsage || hasPayments))
             {
                 throw new BusinessRuleException("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
             }
 
-            purchase.hours = hours;
-            purchase.price = price;
-            purchase.customerId = (int)customerId;
-            purchase.startDate = startDate;
-            purchase.endDate = endDate;
+            purchase.hours = dto.hours;
+            purchase.price = dto.price;
+            purchase.customerId = dto.customerId;
+            purchase.startDate = dto.startDate;
+            purchase.endDate = dto.endDate;
             purchase.updatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();

@@ -59,7 +59,7 @@ namespace Iroh.Controllers
         [HttpPut]
         public async Task<IActionResult> Update(PurchaseUpdateDto purchaseUpdateDto)
         {
-            await _purchaseService.Update(purchaseUpdateDto.id, purchaseUpdateDto.hours, purchaseUpdateDto.price, purchaseUpdateDto.customerId, purchaseUpdateDto.startDate, purchaseUpdateDto.endDate);
+            await _purchaseService.Update(purchaseUpdateDto);
             return Ok(ApiResponse.Ok<object?>(null, "Paket başarıyla güncellendi"));
         }
 
