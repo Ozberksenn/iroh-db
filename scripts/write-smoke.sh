@@ -46,7 +46,7 @@ chk "customer PUT 400 (misafir 999999)" 400 "$(code PUT /api/customer '{"id":999
 chk "customer DELETE 404" 404 "$(code DELETE /api/customer/999998)"
 chk "customer DELETE 400 (misafir 999999)" 400 "$(code DELETE /api/customer/999999)"
 
-chk "bookinglog PUT 404" 404 "$(code PUT /api/booking-log/999998 '{"bookingId":1,"time":"2026-01-01T00:00:00Z","type":1,"userId":1}')"
+chk "bookinglog PUT 404" 404 "$(code PUT /api/booking-log '{"id":999998,"bookingId":1,"time":"2026-01-01T00:00:00Z","type":1,"userId":1}')"
 
 echo
 echo "[write-smoke] SONUÇ: $PASS geçti, $FAIL başarısız."

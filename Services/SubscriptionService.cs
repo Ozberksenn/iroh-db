@@ -143,7 +143,7 @@ namespace Iroh.Services
                                 StartDate = sub.BestPurchase.StartDate,
                                 EndDate = sub.BestPurchase.EndDate,
                                 CustomerId = sub.BestPurchase.CustomerId,
-                                UsedMinutes = sub.BestUsedMinutes,
+                                UsedHours = sub.BestUsedMinutes,
                                 Payments = sub.BestPayments
                                     .Select(pp => new PaymentDto { Id = pp.Id, PurchaseId = pp.PurchaseId, Hours = pp.Hours, Price = pp.Price })
                                     .ToList()
@@ -152,6 +152,7 @@ namespace Iroh.Services
                     }
                     customer = new ActiveBookingCustomerDto
                     {
+                        Id = b.Child.Id,
                         ChildId = b.Child.Id,
                         Name = b.Child.Name,
                         ParentId = parent?.Id,
@@ -166,6 +167,9 @@ namespace Iroh.Services
                 return new ActiveBookingDto
                 {
                     Id = b.Id,
+                    TableId = b.TableId,
+                    ChildId = b.Child?.Id,
+                    CustomerId = b.Child?.Parent?.Id,
                     Table = b.TableId != null ? new BookingTableDto { Id = b.Table?.Id, Name = b.Table?.Name } : null,
                     Customer = customer,
                     Price = b.Price,

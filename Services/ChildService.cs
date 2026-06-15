@@ -76,10 +76,11 @@ namespace Iroh.Services
                 subs.TryGetValue(r.parentId, out var sub);
                 sub ??= new SubscriptionService.ParentSubscription();
 
-                // 4 kademe (Subscriber YOK):
+                // 5 kademe: eski fn_search_unified + aktif-seans yoluyla parite (süresi geçmiş abone = Subscriber).
                 var status = (sub.BestIsDateValid && sub.BestRemainingMinutes > 0) ? "ActiveSubscriber"
                            : sub.BestIsDateValid ? "OverageSubscriber"
                            : sub.HasUpcoming ? "UpcomingSubscriber"
+                           : sub.HasAny ? "Subscriber"
                            : "Customer";
 
                 return new

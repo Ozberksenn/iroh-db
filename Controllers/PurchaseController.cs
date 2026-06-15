@@ -26,15 +26,15 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(purchases, "Başarılı"));
         }
 
-        [HttpGet("customer")]
-        public async Task<IActionResult> GetByCustomer([FromQuery] int customerId)
+        [HttpGet("customer/{customerId}")]
+        public async Task<IActionResult> GetByCustomer(int customerId)
         {
             var results = await _purchaseService.GetByCustomerId(customerId);
             return Ok(ApiResponse.Ok(results, "Başarılı"));
         }
 
-        [HttpGet("purchase-bookings-by-id")]
-        public async Task<IActionResult> GetPurchaseBookings([FromQuery] int purchaseId)
+        [HttpGet("{purchaseId}/bookings")]
+        public async Task<IActionResult> GetPurchaseBookings(int purchaseId)
         {
             var results = await _purchaseService.GetPurchaseBookings(purchaseId);
             return Ok(ApiResponse.Ok(results, "Başarılı"));

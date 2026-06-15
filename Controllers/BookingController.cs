@@ -40,7 +40,7 @@ namespace Iroh.Controllers
         }
 
         // vw_activebookings: abone kademesi + en iyi paket + usedMinutes + payments + logs
-        [HttpGet("Active")]
+        [HttpGet("active")]
         public async Task<IActionResult> GetActive()
         {
             var bookings = await _subscriptionService.GetActiveBookings();

@@ -47,11 +47,11 @@ check "bookings (usp_get_bookings)" \
 
 check "active-bookings (vw_activebookings)" \
   "$(proc "SELECT string_agg(id||'|'||COALESCE(customer->>'status','-')||'|'||COALESCE(customer->'purchase'->>'id','-')||'|'||COALESCE(round((customer->'purchase'->>'usedHours')::numeric)::text,'-'),',' ORDER BY id) FROM vw_activebookings;")" \
-  "$(api "/api/booking/Active" | norm active)"
+  "$(api "/api/booking/active" | norm active)"
 
 check "search-unified (fn_search_unified)" \
   "$(proc "SELECT string_agg(COALESCE(child_id,0)||'|'||parent_id||'|'||status||'|'||round(COALESCE(remaining_hours,0),2)::text||'|'||is_active,',' ORDER BY parent_id,COALESCE(child_id,0)) FROM fn_search_unified('');")" \
-  "$(api "/api/child/search-unified?q=" | norm search)"
+  "$(api "/api/child/search?q=" | norm search)"
 
 check "tables (vw_tables)" \
   "$(proc "SELECT string_agg(id||':'||name,',' ORDER BY id) FROM vw_tables;")" \
@@ -63,7 +63,7 @@ check "purchases (vw_purchases)" \
 
 check "purchase/customer=4 (fn_get_purchase_by_customer_id)" \
   "$(proc "SELECT string_agg(id||'|'||round(\"usedHours\"::numeric)||'|'||json_array_length(payments),',' ORDER BY id) FROM fn_get_purchase_by_customer_id(4);")" \
-  "$(api "/api/purchase/customer?customerId=4" | norm purchasecustomer)"
+  "$(api "/api/purchase/customer/4" | norm purchasecustomer)"
 
 api "/api/dashboard/summary?startDate=$S&endDate=$E" > /tmp/parity-dash.json
 check "dashboard.overview (fn_get_dashboard_overview/_purchases)" \

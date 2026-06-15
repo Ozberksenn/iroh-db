@@ -4,6 +4,10 @@ namespace Iroh.Models.DTOs.Booking
     public class ActiveBookingDto
     {
         public int Id { get; set; }
+        // Client aktif seans satırında bu alanları top-level okuyor (form pre-fill: complete/update/pause/continue/cancel).
+        public int? TableId { get; set; }
+        public int? ChildId { get; set; }
+        public int? CustomerId { get; set; }   // client top-level customerId = ebeveyn id
         public BookingTableDto? Table { get; set; }
         public ActiveBookingCustomerDto? Customer { get; set; }
         public decimal? Price { get; set; }
@@ -18,6 +22,7 @@ namespace Iroh.Models.DTOs.Booking
 
     public class ActiveBookingCustomerDto
     {
+        public int? Id { get; set; }                 // client customer.id = çocuk id (999999 sistem-kullanıcı tespiti)
         public int? ChildId { get; set; }            // view'da customer.id = çocuk id
         public string? Name { get; set; }            // çocuk adı
         public int? ParentId { get; set; }
@@ -36,8 +41,8 @@ namespace Iroh.Models.DTOs.Booking
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int CustomerId { get; set; }
-        // D6: view bunu yanlışlıkla "usedHours" diye veriyordu; değer aslında DAKİKA. Doğru isimle.
-        public double UsedMinutes { get; set; }
+        // Değer DAKİKA cinsinden; client bu alanı tarihsel olarak "usedHours" adıyla (dakika değeriyle) okuyor.
+        public double UsedHours { get; set; }
         public List<PaymentDto> Payments { get; set; } = new();
     }
 

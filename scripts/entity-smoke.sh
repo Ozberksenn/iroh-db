@@ -29,7 +29,7 @@ chk "GET /api/package (Package)"                          200 "$(gcode /api/pack
 chk "GET /api/company (Company)"                          200 "$(gcode /api/company)"
 chk "GET /api/booking-log (BookingLog+Booking nav)"       200 "$(gcode /api/booking-log)"
 chk "GET /api/purchase-payment (PurchasePayment)"         200 "$(gcode /api/purchase-payment)"
-chk "GET purchase-bookings-by-id (PurchaseBooking join)"  200 "$(gcode '/api/purchase/purchase-bookings-by-id?purchaseId=1')"
+chk "GET purchase bookings (PurchaseBooking join)"        200 "$(gcode '/api/purchase/1/bookings')"
 chk "POST /api/auth/login bogus (User SELECT -> 401)"     401 "$(pcode /api/auth/login '{"mail":"nope@nope.invalid","password":"x"}')"
 
 echo

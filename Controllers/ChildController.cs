@@ -18,14 +18,14 @@ namespace Iroh.Controllers
             _childService = childService;
         }
 
-        [HttpGet("search-unified")]
+        [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string q = "")
         {
             var results = await _childService.SearchUnified(q);
             return Ok(ApiResponse.Ok(results, "Başarılı"));
         }
 
-        [HttpPost("customers/{parentId}")]
+        [HttpPost("parent/{parentId}")]
         public async Task<IActionResult> Create(int parentId, [FromBody] ChildCreateDto dto)
         {
             // Sistem misafiri → servis BusinessRuleException atar → handler 400.
@@ -33,7 +33,7 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(ChildDto.From(child!), "Çocuk başarıyla oluşturuldu"));
         }
 
-        [HttpGet("customers/{parentId}")]
+        [HttpGet("parent/{parentId}")]
         public async Task<IActionResult> GetByParent(int parentId)
         {
             var children = await _childService.GetChildrenByParentId(parentId);

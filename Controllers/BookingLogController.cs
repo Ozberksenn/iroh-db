@@ -41,11 +41,11 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Oluşturuldu."));
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] BookingLogUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Update([FromBody] BookingLogUpdateDto dto)
         {
             // Kayıt yoksa servis NotFoundException atar → handler 404.
-            var result = await _bookingLogService.Update(id, dto);
+            var result = await _bookingLogService.Update(dto);
             return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Güncellendi."));
         }
     }

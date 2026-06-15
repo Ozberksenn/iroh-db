@@ -38,6 +38,26 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// CORS: izin verilen origin'ler config'ten (Cors:AllowedOrigins) gelir; hardcode yok.
+// Dev'de değer yoksa Vite varsayılanına (localhost:5173) düşer; prod'da boşsa hiçbir cross-origin'e izin verilmez (fail-closed).
+const string CorsPolicyName = "IrohClient";
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    corsOrigins = new[] { "http://localhost:5173", "http://localhost:3000" };
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins(corsOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();   // refreshToken HttpOnly cookie'sinin cross-origin taşınabilmesi için
+    });
+});
+
 // Global hata yönetimi: ProblemDetails (RFC7807) + IExceptionHandler
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<Iroh.Infrastructure.GlobalExceptionHandler>();
@@ -67,6 +87,9 @@ builder.Services.AddControllers(options =>
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         // C# property'leri PascalCase; JSON çıktısı camelCase kalsın.
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        // Client ID/sayı alanlarını JSON string olarak gönderiyor (örn. tableId:"5", userId:"12");
+        // sayısal alanların string'ten de okunabilmesine izin ver, aksi halde model-binding 400 atar.
+        options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -117,6 +140,9 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
+
+// CORS, authentication/authorization'dan ÖNCE çalışmalı (preflight isteklerinin geçmesi için).
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();

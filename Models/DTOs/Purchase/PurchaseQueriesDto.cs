@@ -11,8 +11,8 @@ namespace Iroh.Models.DTOs.Purchase
         public DateTime? EndDate { get; set; }
         public double Hours { get; set; }
         public double Price { get; set; }
-        // D6: proc bunu "usedHours" diye veriyordu ama değer DAKİKA. Doğru isimle.
-        public double UsedMinutes { get; set; }
+        // Değer DAKİKA cinsinden; client bu alanı tarihsel olarak "usedHours" adıyla (dakika değeriyle) okuyor.
+        public double UsedHours { get; set; }
         public List<PaymentDto> Payments { get; set; } = new();
     }
 

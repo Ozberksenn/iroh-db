@@ -115,10 +115,14 @@ namespace Iroh.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            // Client JWT payload'unu ham olarak okuyor (core/session.ts -> parseJwt) ve "mail" + "id"
+            // claim'lerini bekliyor; Node backend de token'ı { id, mail } ile imzalıyordu. Pariteyi koru.
+            // "sub" ayrıca RefreshToken() tarafından okunduğu için bırakıldı.
             var claims = new[]
             {
+                new Claim("id", user.Id.ToString()),
+                new Claim("mail", user.Mail),
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Mail),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("name", user.Name)
             };

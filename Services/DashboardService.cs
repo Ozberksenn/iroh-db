@@ -58,7 +58,7 @@ namespace Iroh.Services
 
             response.Overview = new DashboardOverviewDto
             {
-                TotalBookings = totalBookings,
+                TotalChildren = totalBookings,
                 ActiveCurrently = activeCurrently,
                 BookingRevenue = bookingRevenue,
                 PurchaseRevenue = purchaseRevenue,
@@ -79,7 +79,7 @@ namespace Iroh.Services
                     BookingId = b.Id,
                     Name = b.Child.Name ?? "Bilinmeyen",
                     LastName = "",
-                    Parentname = (b.Child.Parent.Name ?? "Misafir") + " " + (b.Child.Parent.LastName ?? ""),
+                    ParentName = (b.Child.Parent.Name ?? "Misafir") + " " + (b.Child.Parent.LastName ?? ""),
                     ParentId = b.Child.ParentId,
                     CheckIn = b.StartTime,
                     CheckOut = b.EndTime,

@@ -10,7 +10,7 @@ namespace Iroh.Services
         Task<List<BookingLog>> GetAll();
         Task<BookingLog> Create(BookingLog log);
         Task<BookingLog?> GetById(int id);
-        Task<BookingLog> Update(int id, BookingLogUpdateDto dto);
+        Task<BookingLog> Update(BookingLogUpdateDto dto);
     }
 
     public class BookingLogService : IBookingLogService
@@ -38,9 +38,9 @@ namespace Iroh.Services
         public async Task<BookingLog?> GetById(int id) =>
             await _context.BookingLogs.FindAsync(id);
 
-        public async Task<BookingLog> Update(int id, BookingLogUpdateDto dto)
+        public async Task<BookingLog> Update(BookingLogUpdateDto dto)
         {
-            var log = await GetById(id)
+            var log = await GetById(dto.Id)
                 ?? throw new NotFoundException("Kayıt bulunamadı");
 
             log.BookingId = dto.BookingId;

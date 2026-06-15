@@ -11,7 +11,8 @@ namespace Iroh.Models.DTOs.Dashboard
 
     public class DashboardOverviewDto
     {
-        public int TotalBookings { get; set; }
+        // Client bunu "totalChildren" adıyla okuyor (eski fn_get_dashboard_overview.total_children = COUNT(DISTINCT booking) ile aynı değer).
+        public int TotalChildren { get; set; }
         public int ActiveCurrently { get; set; }
         public decimal TotalRevenue { get; set; }
         public decimal BookingRevenue { get; set; }
@@ -37,8 +38,9 @@ namespace Iroh.Models.DTOs.Dashboard
     {
         public int BookingId { get; set; }
         public string Name { get; set; } = string.Empty;
+        // Değer bilerek boş (çocuk soyadı kullanılmıyor). Wire: camelCase "lastName".
         public string LastName { get; set; } = string.Empty;
-        public string Parentname { get; set; } = string.Empty;
+        public string ParentName { get; set; } = string.Empty;
         public int? ParentId { get; set; }
         public DateTime? CheckIn { get; set; }
         public DateTime? CheckOut { get; set; }

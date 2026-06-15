@@ -86,7 +86,7 @@ namespace Iroh.Services
                 EndDate = p.EndDate,
                 Hours = (double)p.Hours,
                 Price = (double)p.Price,
-                UsedMinutes = UsedMinutesFor(p.Id),
+                UsedHours = UsedMinutesFor(p.Id),
                 Payments = payments.Where(pp => pp.PurchaseId == p.Id)
                     .Select(pp => new PaymentDto { Id = pp.Id, PurchaseId = pp.PurchaseId, Hours = pp.Hours, Price = pp.Price })
                     .ToList()
