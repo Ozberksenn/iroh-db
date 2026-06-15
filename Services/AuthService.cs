@@ -118,7 +118,7 @@ namespace Iroh.Services
                 issuer: jwtSettings["Issuer"],
                 audience: jwtSettings["Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(expiryInMinutes),
+                expires: DateTime.UtcNow.AddMinutes(expiryInMinutes),
                 signingCredentials: creds
             );
 

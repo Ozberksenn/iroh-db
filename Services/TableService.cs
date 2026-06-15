@@ -32,7 +32,19 @@ namespace Iroh.Services
 
         public async Task Delete(long id)
         {
-            await _context.Database.ExecuteSqlInterpolatedAsync($"CALL usp_delete_table({id})");
+            // aktif booking kontrolü (usp_delete_table logic)
+            var hasActiveBooking = await _context.Booking.AnyAsync(b => b.tableId == (int)id && (b.status == Models.Enums.BookingStatus.Active || b.status == Models.Enums.BookingStatus.Paused));
+            if (hasActiveBooking)
+            {
+                throw new Exception("Bu masaya ait aktif rezervasyon var. Silinemez!");
+            }
+
+            var table = await _context.Table.FindAsync((int)id);
+            if (table != null)
+            {
+                table.isDeleted = true;
+                await _context.SaveChangesAsync();
+            }
         }
 
         public Table? GetById(int id)

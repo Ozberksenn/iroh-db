@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<Purchase> Purchase { get; set; }
     public DbSet<PurchaseBooking> purchaseBookings { get; set; }
     public DbSet<PurchasePayment> purchasePayments { get; set; }
+    public DbSet<Package> Packages { get; set; }
 
     public DbSet<Child> Children { get; set; }
     public DbSet<Iroh.Models.DTOs.Child.UnifiedSearchResultDto> UnifiedSearchResults { get; set; }

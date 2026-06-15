@@ -27,20 +27,48 @@ namespace Iroh.Controllers
                 return Unauthorized(new CustomResponse<string>(false, "E-posta veya şifre hatalı!", null));
             }
 
+            SetRefreshTokenCookie(authResponse.refreshToken);
+
             return Ok(new CustomResponse<AuthResponseDto>(true, "Giriş başarılı", authResponse));
         }
 
         [HttpPost("refresh")]
         public IActionResult Refresh([FromBody] RefreshTokenDto refreshTokenDto)
         {
-            var authResponse = _authService.RefreshToken(refreshTokenDto.refreshToken);
+            // Eğer body'de token yoksa cookie'den almayı dene
+            string? token = refreshTokenDto.refreshToken;
+            if (string.IsNullOrEmpty(token))
+            {
+                token = Request.Cookies["refreshToken"];
+            }
+
+            if (string.IsNullOrEmpty(token))
+            {
+                return Unauthorized(new CustomResponse<string>(false, "Refresh token bulunamadı!", null));
+            }
+
+            var authResponse = _authService.RefreshToken(token);
 
             if (authResponse == null)
             {
                 return Unauthorized(new CustomResponse<string>(false, "Geçersiz veya süresi dolmuş token!", null));
             }
 
+            SetRefreshTokenCookie(authResponse.refreshToken);
+
             return Ok(new CustomResponse<AuthResponseDto>(true, "Token başarıyla yenilendi", authResponse));
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true, // Frontend https ise true olmalı, Node.js tarafında true'ydu
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(7)
+            };
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
         }
 
         [HttpPost("register")]

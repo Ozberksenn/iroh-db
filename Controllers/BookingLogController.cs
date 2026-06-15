@@ -3,15 +3,16 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
 
-    public class BookingLogController : ControllerBase
-    {
+    public class BookingLogController : ControllerBase    {
         private readonly BookingLogService _bookingLogService;
 
         public BookingLogController(BookingLogService bookingLogService)

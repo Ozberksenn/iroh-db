@@ -2,12 +2,15 @@ using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Purchase;
 using Iroh.Models.Entities;
 using Iroh.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iroh.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
+
     public class PurchaseController : ControllerBase
     {
         private readonly PurchaseService _purchaseService;
@@ -32,7 +35,7 @@ namespace Iroh.Controllers
             return Ok(new CustomResponse<List<CustomerPurchaseResultDto>>(true, "Başarılı", results));
         }
 
-        [HttpGet("purchaseBookingsById")]
+        [HttpGet("purchase-bookings-by-id")]
         public async Task<IActionResult> GetPurchaseBookings([FromQuery] long purchaseId)
         {
             var results = await _purchaseService.GetPurchaseBookings(purchaseId);
@@ -62,12 +65,12 @@ namespace Iroh.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, PurchaseUpdateDto purchaseUpdateDto)
+        [HttpPut]
+        public async Task<IActionResult> Update(PurchaseUpdateDto purchaseUpdateDto)
         {
             try
             {
-                await _purchaseService.Update(id, purchaseUpdateDto.hours, purchaseUpdateDto.price, purchaseUpdateDto.customerId, purchaseUpdateDto.startDate, purchaseUpdateDto.endDate);
+                await _purchaseService.Update(purchaseUpdateDto.id, purchaseUpdateDto.hours, purchaseUpdateDto.price, purchaseUpdateDto.customerId, purchaseUpdateDto.startDate, purchaseUpdateDto.endDate);
                 return Ok(new CustomResponse<string>(true, "Paket başarıyla güncellendi", null));
             }
             catch (Exception ex)

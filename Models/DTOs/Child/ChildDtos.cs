@@ -8,6 +8,7 @@ namespace Iroh.Models.DTOs.Child
 
     public class ChildUpdateDto
     {
+        public long id { get; set; }
         public required string name { get; set; }
         public DateTime? birthDate { get; set; }
     }
