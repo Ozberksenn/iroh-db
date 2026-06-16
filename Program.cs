@@ -136,11 +136,8 @@ var app = builder.Build();
 // Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
 
