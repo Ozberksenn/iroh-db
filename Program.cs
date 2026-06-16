@@ -44,7 +44,9 @@ builder.Services.AddAuthorization();
 // CORS: izin verilen origin'ler config'ten (Cors:AllowedOrigins) gelir; hardcode yok.
 // Dev'de değer yoksa Vite varsayılanına (localhost:5173) düşer; prod'da boşsa hiçbir cross-origin'e izin verilmez (fail-closed).
 const string CorsPolicyName = "IrohClient";
-var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var corsAllowedOrigins = builder.Configuration["Cors:AllowedOrigins"];
+var corsOrigins = corsAllowedOrigins?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+
 if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
 {
     corsOrigins = new[] { "http://localhost:5173", "http://localhost:3000", "https://playground-management.vercel.app" };
