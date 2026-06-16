@@ -74,6 +74,8 @@ Thumbs.db
 
 # User-specific files
 appsettings.Development.json
+.env
+.env.*
 
 # Claude Code çalışma/planlama dokümanları (commit edilmez)
 /CLAUDE.md
