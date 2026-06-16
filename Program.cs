@@ -12,7 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // JWT Ayarlarını oku
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "IrohManagementSystemSuperSecretKeyWithAtLeast32Characters";
+var secretKey = jwtSettings["SecretKey"]
+    ?? throw new InvalidOperationException("JwtSettings:SecretKey yapılandırılmamış (appsettings.Development.json veya ortam değişkeni).");
 
 // Authentication ve JWT Bearer servisini ekle
 builder.Services.AddAuthentication(options =>
@@ -24,33 +25,71 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false, // Geçici olarak kapattık
-        ValidateAudience = false, // Geçici olarak kapattık
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-        ClockSkew = TimeSpan.FromMinutes(5) // Daha fazla tolerans verdik
+        ClockSkew = TimeSpan.FromMinutes(1)
     };
 });
 
 builder.Services.AddAuthorization();
 
-// Servis Kayıtları
-builder.Services.AddScoped<TableService>();
-builder.Services.AddScoped<CompanyService>();
-builder.Services.AddScoped<CustomerService>();
-builder.Services.AddScoped<BookingService>();
-builder.Services.AddScoped<BookingLogService>();
-builder.Services.AddScoped<PurchasePaymentService>();
-builder.Services.AddScoped<PurchaseService>();
-builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<DashboardService>();
-builder.Services.AddScoped<ChildService>();
+// CORS: izin verilen origin'ler config'ten (Cors:AllowedOrigins) gelir; hardcode yok.
+// Dev'de değer yoksa Vite varsayılanına (localhost:5173) düşer; prod'da boşsa hiçbir cross-origin'e izin verilmez (fail-closed).
+const string CorsPolicyName = "IrohClient";
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
+{
+    corsOrigins = new[] { "http://localhost:5173", "http://localhost:3000" };
+}
 
-builder.Services.AddControllers()
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyName, policy =>
+    {
+        policy.WithOrigins(corsOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();   // refreshToken HttpOnly cookie'sinin cross-origin taşınabilmesi için
+    });
+});
+
+// Global hata yönetimi: ProblemDetails (RFC7807) + IExceptionHandler
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<Iroh.Infrastructure.GlobalExceptionHandler>();
+
+// Servis Kayıtları
+builder.Services.AddScoped<ITableService, TableService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IBookingLogService, BookingLogService>();
+builder.Services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
+builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddScoped<IPackageService, PackageService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IChildService, ChildService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+
+builder.Services.AddControllers(options =>
+    {
+        // Route token'ları kebab-case: /api/booking-log, /api/purchase-payment (C3)
+        options.Conventions.Add(new Microsoft.AspNetCore.Mvc.ApplicationModels.RouteTokenTransformerConvention(
+            new Iroh.Infrastructure.KebabCaseParameterTransformer()));
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // C# property'leri PascalCase; JSON çıktısı camelCase kalsın.
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        // Client ID/sayı alanlarını JSON string olarak gönderiyor (örn. tableId:"5", userId:"12");
+        // sayısal alanların string'ten de okunabilmesine izin ver, aksi halde model-binding 400 atar.
+        options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -91,6 +130,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
+// Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -98,6 +140,9 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
+
+// CORS, authentication/authorization'dan ÖNCE çalışmalı (preflight isteklerinin geçmesi için).
+app.UseCors(CorsPolicyName);
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -7,38 +7,33 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Table> Table { get; set; }
-    public DbSet<Company> Company { get; set; }
-    public DbSet<Customer> Customer { get; set; }
-    public DbSet<Booking> Booking { get; set; }
-    public DbSet<BookingLog> BookingLog { get; set; }
-    public DbSet<User> User { get; set; }
-    public DbSet<Purchase> Purchase { get; set; }
-    public DbSet<PurchaseBooking> purchaseBookings { get; set; }
-    public DbSet<PurchasePayment> purchasePayments { get; set; }
+    public DbSet<Table> Tables { get; set; }
+    public DbSet<Company> Companies { get; set; }
+    public DbSet<Customer> Customers { get; set; }
+    public DbSet<Booking> Bookings { get; set; }
+    public DbSet<BookingLog> BookingLogs { get; set; }
+    public DbSet<User> Users { get; set; }
+    public DbSet<Purchase> Purchases { get; set; }
+    public DbSet<PurchaseBooking> PurchaseBookings { get; set; }
+    public DbSet<PurchasePayment> PurchasePayments { get; set; }
     public DbSet<Package> Packages { get; set; }
 
     public DbSet<Child> Children { get; set; }
-    public DbSet<Iroh.Models.DTOs.Child.UnifiedSearchResultDto> UnifiedSearchResults { get; set; }
-    public DbSet<Iroh.Models.DTOs.Purchase.CustomerPurchaseResultDto> CustomerPurchaseResults { get; set; }
-    public DbSet<Iroh.Models.DTOs.Purchase.PurchaseBookingResultDto> PurchaseBookingResults { get; set; }
+    // NOT: UnifiedSearchResultDto / CustomerPurchaseResultDto / PurchaseBookingResultDto artık
+    // DbSet/HasNoKey DEĞİL — LINQ projeksiyon hedefi olarak kullanılıyorlar (FromSql kaldırıldı).
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Iroh.Models.DTOs.Child.UnifiedSearchResultDto>().HasNoKey();
-        modelBuilder.Entity<Iroh.Models.DTOs.Purchase.CustomerPurchaseResultDto>().HasNoKey();
-        modelBuilder.Entity<Iroh.Models.DTOs.Purchase.PurchaseBookingResultDto>().HasNoKey();
-
         // BookingStatus enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
         modelBuilder.Entity<Booking>()
-            .Property(b => b.status)
+            .Property(b => b.Status)
             .HasConversion<string>();
 
         // BookingLogType enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
         modelBuilder.Entity<BookingLog>()
-            .Property(bl => bl.type)
+            .Property(bl => bl.Type)
             .HasConversion<string>();
     }
 }

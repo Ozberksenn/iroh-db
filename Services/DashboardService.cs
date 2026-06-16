@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class DashboardService
+    public interface IDashboardService
+    {
+        Task<DashboardResponseDto> GetDashboardSummary(DateTime startDate, DateTime endDate);
+    }
+
+    public class DashboardService : IDashboardService
     {
         private readonly AppDbContext _context;
 
@@ -19,95 +24,97 @@ namespace Iroh.Services
             var response = new DashboardResponseDto();
 
             // 1. Overview Stats (fn_get_dashboard_overview)
-            var totalBookings = await _context.Booking
-                .CountAsync(b => b.startTime >= startDate && b.startTime <= endDate && (b.child.parent == null || !b.child.parent.isDeleted));
+            var totalBookings = await _context.Bookings
+                .CountAsync(b => b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted));
 
-            var activeCurrently = await _context.Booking
-                .CountAsync(b => b.startTime >= startDate && b.startTime <= endDate && (b.status == BookingStatus.Active) && (b.child.parent == null || !b.child.parent.isDeleted));
+            var activeCurrently = await _context.Bookings
+                .CountAsync(b => b.StartTime >= startDate && b.StartTime <= endDate && (b.Status == BookingStatus.Active) && (b.Child.Parent == null || !b.Child.Parent.IsDeleted));
 
-            var canceledCount = await _context.Booking
-                .CountAsync(b => b.startTime >= startDate && b.startTime <= endDate && (b.status == BookingStatus.Canceled) && (b.child.parent == null || !b.child.parent.isDeleted));
+            var canceledCount = await _context.Bookings
+                .CountAsync(b => b.StartTime >= startDate && b.StartTime <= endDate && (b.Status == BookingStatus.Canceled) && (b.Child.Parent == null || !b.Child.Parent.IsDeleted));
 
-            var bookingRevenue = await _context.Booking
-                .Where(b => b.startTime >= startDate && b.startTime <= endDate && (b.child.parent == null || !b.child.parent.isDeleted))
-                .SumAsync(b => (decimal?)b.price ?? 0);
+            var bookingRevenue = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted))
+                .SumAsync(b => (decimal?)b.Price ?? 0);
 
             var avgDuration = 0.0;
-            var durationQuery = _context.Booking
-                .Where(b => b.startTime >= startDate && b.startTime <= endDate && b.endTime != null && b.status != BookingStatus.Canceled && (b.child.parent == null || !b.child.parent.isDeleted));
+            var durationQuery = _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && b.EndTime != null && b.Status != BookingStatus.Canceled && (b.Child.Parent == null || !b.Child.Parent.IsDeleted));
             
             if (await durationQuery.AnyAsync())
             {
-                avgDuration = await durationQuery.AverageAsync(b => (b.endTime!.Value - b.startTime!.Value).TotalMinutes);
+                avgDuration = await durationQuery.AverageAsync(b => (b.EndTime!.Value - b.StartTime!.Value).TotalMinutes);
             }
 
-            var subscriptionSessions = await _context.purchaseBookings
-                .Where(pb => _context.Booking.Any(b => b.id == pb.bookingId && b.startTime >= startDate && b.startTime <= endDate && (b.child.parent == null || !b.child.parent.isDeleted)))
-                .Select(pb => pb.bookingId)
+            var subscriptionSessions = await _context.PurchaseBookings
+                .Where(pb => _context.Bookings.Any(b => b.Id == pb.BookingId && b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted)))
+                .Select(pb => pb.BookingId)
                 .Distinct()
                 .CountAsync();
 
-            var purchaseRevenue = await _context.Purchase
-                .Where(p => p.createdAt >= startDate && p.createdAt <= endDate)
-                .SumAsync(p => (decimal)p.price);
+            var purchaseRevenue = await _context.Purchases
+                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                .SumAsync(p => (decimal)p.Price);
 
-            response.overview = new DashboardOverviewDto
+            response.Overview = new DashboardOverviewDto
             {
-                totalChildren = totalBookings,
-                activeCurrently = activeCurrently,
-                bookingRevenue = bookingRevenue,
-                purchaseRevenue = purchaseRevenue,
-                totalRevenue = bookingRevenue + purchaseRevenue,
-                averageDurationMinutes = (int)Math.Round(avgDuration),
-                cancelationRate = totalBookings > 0 ? (int)Math.Round((double)canceledCount / totalBookings * 100) : 0,
-                purchaseCount = await _context.Purchase.CountAsync(p => p.createdAt >= startDate && p.createdAt <= endDate),
-                subscriptionSessions = subscriptionSessions
+                TotalChildren = totalBookings,
+                ActiveCurrently = activeCurrently,
+                BookingRevenue = bookingRevenue,
+                PurchaseRevenue = purchaseRevenue,
+                TotalRevenue = bookingRevenue + purchaseRevenue,
+                AverageDurationMinutes = (int)Math.Round(avgDuration),
+                CancelationRate = totalBookings > 0 ? (int)Math.Round((double)canceledCount / totalBookings * 100) : 0,
+                PurchaseCount = await _context.Purchases.CountAsync(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                SubscriptionSessions = subscriptionSessions
             };
 
             // 2. Daily List (fn_get_dashboard_daily_list)
-            response.dailyList = await _context.Booking
-                .Where(b => b.startTime >= startDate && b.startTime <= endDate && (b.child.parent == null || !b.child.parent.isDeleted))
-                .OrderByDescending(b => b.startTime)
+            response.DailyList = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted))
+                .OrderByDescending(b => b.StartTime)
                 .Take(10)
                 .Select(b => new DailyBookingDto
                 {
-                    bookingId = b.id,
-                    name = b.child.name ?? "Bilinmeyen",
-                    lastname = "",
-                    parentname = (b.child.parent.name ?? "Misafir") + " " + (b.child.parent.lastName ?? ""),
-                    parentId = b.child.parentId,
-                    checkIn = b.startTime,
-                    checkOut = b.endTime,
-                    status = b.status.ToString(),
-                    price = b.price,
-                    isSubscription = _context.purchaseBookings.Any(pb => pb.bookingId == b.id)
+                    BookingId = b.Id,
+                    Name = b.Child.Name ?? "Bilinmeyen",
+                    LastName = "",
+                    ParentName = (b.Child.Parent.Name ?? "Misafir") + " " + (b.Child.Parent.LastName ?? ""),
+                    ParentId = b.Child.ParentId,
+                    CheckIn = b.StartTime,
+                    CheckOut = b.EndTime,
+                    Status = b.Status.ToString(),
+                    Price = b.Price,
+                    IsSubscription = _context.PurchaseBookings.Any(pb => pb.BookingId == b.Id)
                 })
                 .ToListAsync();
 
             // 3. Top Customers (fn_get_dashboard_top_customers)
-            var topCustomers = await _context.Customer
-                .Where(c => !c.isDeleted)
+            var topCustomers = await _context.Customers
+                .Where(c => !c.IsDeleted)
                 .Select(c => new TopCustomerDto
                 {
-                    id = c.id,
-                    name = c.name,
-                    // Note: TopCustomerDto in DashboardResponseDto uses 'name' and no 'lastName' field in the live SQL result mapping
-                    visitCount = _context.Booking.Count(b => b.child.parentId == c.id && b.startTime >= startDate && b.startTime <= endDate),
-                    purchaseCount = _context.Purchase.Count(p => p.customerId == c.id && p.createdAt >= startDate && p.createdAt <= endDate),
-                    bookingSpent = _context.Booking.Where(b => b.child.parentId == c.id && b.startTime >= startDate && b.startTime <= endDate && b.status == BookingStatus.Completed && b.price.HasValue)
-                                    .Sum(b => (decimal)b.price!.Value),
-                    purchaseSpent = _context.Purchase.Where(p => p.customerId == c.id && p.createdAt >= startDate && p.createdAt <= endDate)
-                                    .Sum(p => (decimal)p.price),
+                    Id = c.Id,
+                    Name = c.Name + " " + (c.LastName ?? ""),
+                    // proc: child silinmemiş + aralıkta TÜM bookings (sadece Completed değil!).
+                    VisitCount = _context.Bookings.Count(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate),
+                    PurchaseCount = _context.Purchases.Count(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                    BookingSpent = _context.Bookings.Where(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate)
+                                    .Sum(b => (decimal?)b.Price ?? 0),
+                    PurchaseSpent = _context.Purchases.Where(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                                    .Sum(p => (decimal)p.Price),
                 })
-                .Where(tc => tc.visitCount > 0 || tc.purchaseCount > 0)
-                .OrderByDescending(tc => tc.bookingSpent + tc.purchaseSpent)
+                .Where(tc => tc.VisitCount > 0 || tc.PurchaseCount > 0)
+                .OrderByDescending(tc => tc.BookingSpent + tc.PurchaseSpent)
                 .Take(10)
                 .ToListAsync();
-            
-            foreach(var tc in topCustomers) {
-                tc.totalSpent = tc.bookingSpent + tc.purchaseSpent;
+
+            foreach (var tc in topCustomers)
+            {
+                tc.Name = tc.Name.Trim();
+                tc.TotalSpent = tc.BookingSpent + tc.PurchaseSpent;
             }
-            response.topCustomers = topCustomers;
+            response.TopCustomers = topCustomers;
 
             // 4. Revenue Chart (fn_get_dashboard_revenue_chart)
             var dateList = new List<DateTime>();
@@ -115,36 +122,36 @@ namespace Iroh.Services
                 dateList.Add(dt);
             }
 
-            var bookingRevs = await _context.Booking
-                .Where(b => b.startTime >= startDate && b.startTime <= endDate)
-                .GroupBy(b => b.startTime!.Value.Date)
-                .Select(g => new { Date = g.Key, Total = g.Sum(b => (decimal?)b.price ?? 0) })
+            var bookingRevs = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
+                .GroupBy(b => b.StartTime!.Value.Date)
+                .Select(g => new { Date = g.Key, Total = g.Sum(b => (decimal?)b.Price ?? 0) })
                 .ToListAsync();
 
-            var purchaseRevs = await _context.Purchase
-                .Where(p => p.createdAt >= startDate && p.createdAt <= endDate)
-                .GroupBy(p => p.createdAt.Date)
-                .Select(g => new { Date = g.Key, Total = g.Sum(p => (decimal)p.price) })
+            var purchaseRevs = await _context.Purchases
+                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
+                .GroupBy(p => p.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Total = g.Sum(p => (decimal)p.Price) })
                 .ToListAsync();
 
-            response.revenueChart = dateList.Select(d => new RevenueChartDto
+            response.RevenueChart = dateList.Select(d => new RevenueChartDto
             {
-                date = d.ToString("dd.MM"),
-                bookingRevenue = bookingRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0,
-                purchaseRevenue = purchaseRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0
+                Date = d.ToString("dd.MM"),
+                BookingRevenue = bookingRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0,
+                PurchaseRevenue = purchaseRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0
             }).ToList();
 
-            // 5. Busy Hours (fn_get_dashboard_busy_hours)
-            response.busyHoursChart = await _context.Booking
-                .Where(b => b.startTime >= startDate && b.startTime <= endDate)
-                .GroupBy(b => b.startTime!.Value.Hour)
-                .Select(g => new BusyHourDto
-                {
-                    hour = g.Key.ToString("D2") + ":00",
-                    count = g.Count()
-                })
-                .OrderBy(g => g.hour)
+            // 5. Busy Hours (fn_get_dashboard_busy_hours) — saat bucket'ı SQL'de (Istanbul TZ), format/sıra bellekte.
+            var busyRaw = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
+                .GroupBy(b => b.StartTime!.Value.Hour)
+                .Select(g => new { Hour = g.Key, Count = g.Count() })
                 .ToListAsync();
+
+            response.BusyHoursChart = busyRaw
+                .OrderBy(x => x.Hour)
+                .Select(x => new BusyHourDto { Hour = x.Hour.ToString("D2") + ":00", Count = x.Count })
+                .ToList();
 
             return response;
         }

@@ -5,25 +5,28 @@ namespace Iroh.Models.Entities
     [Table("purchases", Schema = "public")]
     public class Purchase : BaseEntity
     {
-        public required int hours { get; set; }
-        public required int price { get; set; }
+        [Column("hours")]
+        public required decimal Hours { get; set; }
+
+        [Column("price")]
+        public required decimal Price { get; set; }
 
         [Column("createdat")]
-        public required DateTime createdAt { get; set; }
+        public required DateTime CreatedAt { get; set; }
 
         [Column("updatedat")]
-        public DateTime? updatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         [Column("customerid")]
-        public int customerId { get; set; }
+        public int CustomerId { get; set; }
 
-        [ForeignKey("customerId")]
-        public Customer? customer { get; set; }
+        [ForeignKey("CustomerId")]
+        public Customer? Customer { get; set; }
 
         [Column("startdate")]
-        public DateTime? startDate { get; set; }
+        public DateTime? StartDate { get; set; }
 
         [Column("enddate")]
-        public DateTime? endDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
 }

@@ -1,6 +1,5 @@
-using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Child;
-using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,67 +11,47 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class ChildController : ControllerBase
     {
-        private readonly ChildService _childService;
+        private readonly IChildService _childService;
 
-        public ChildController(ChildService childService)
+        public ChildController(IChildService childService)
         {
             _childService = childService;
         }
 
-        [HttpGet("search-unified")]
+        [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string q = "")
         {
             var results = await _childService.SearchUnified(q);
-            return Ok(results); // Node.js projesinde doğrudan dizi dönülmüş
+            return Ok(ApiResponse.Ok(results, "Başarılı"));
         }
 
-        [HttpPost("customers/{parentId}")]
-        public async Task<IActionResult> Create(long parentId, [FromBody] ChildCreateDto dto)
+        [HttpPost("parent/{parentId}")]
+        public async Task<IActionResult> Create(int parentId, [FromBody] ChildCreateDto dto)
         {
-            try
-            {
-                var child = await _childService.CreateChild(parentId, dto.name, dto.birthDate);
-                return CreatedAtAction(nameof(Create), new { id = child?.id }, child);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            // Sistem misafiri → servis BusinessRuleException atar → handler 400.
+            var child = await _childService.CreateChild(parentId, dto.Name, dto.BirthDate);
+            return Ok(ApiResponse.Ok(ChildDto.From(child!), "Çocuk başarıyla oluşturuldu"));
         }
 
-        [HttpGet("customers/{parentId}")]
-        public async Task<IActionResult> GetByParent(long parentId)
+        [HttpGet("parent/{parentId}")]
+        public async Task<IActionResult> GetByParent(int parentId)
         {
             var children = await _childService.GetChildrenByParentId(parentId);
-            return Ok(children);
+            return Ok(ApiResponse.Ok(children.Select(ChildDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPut]
         public async Task<IActionResult> Update([FromBody] ChildUpdateDto dto)
         {
-            try
-            {
-                await _childService.UpdateChild(dto.id, dto.name, dto.birthDate);
-                return Ok(new { message = "Çocuk başarıyla güncellendi." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _childService.UpdateChild(dto.Id, dto.Name, dto.BirthDate);
+            return Ok(ApiResponse.Ok<object?>(null, "Çocuk başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> Delete(int id)
         {
-            try
-            {
-                await _childService.DeleteChild(id);
-                return Ok(new { message = "Çocuk başarıyla silindi." });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            await _childService.DeleteChild(id);
+            return Ok(ApiResponse.Ok<object?>(null, "Çocuk başarıyla silindi"));
         }
     }
 }

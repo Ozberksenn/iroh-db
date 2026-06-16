@@ -6,6 +6,7 @@ namespace Iroh.Models.Enums
         Cancel,
         Complete,
         Pause,
-        Continue
+        Continue,
+        Edit // DB'de mevcut (bookinglogs.type); enum'da eksikti.
     }
 }

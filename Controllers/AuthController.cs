@@ -1,6 +1,6 @@
-using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,33 +10,32 @@ namespace Iroh.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly AuthService _authService;
+        private readonly IAuthService _authService;
+        private readonly IWebHostEnvironment _env;
 
-        public AuthController(AuthService authService)
+        public AuthController(IAuthService authService, IWebHostEnvironment env)
         {
             _authService = authService;
+            _env = env;
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginDto loginDto)
+        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
-            var authResponse = _authService.Login(loginDto.mail, loginDto.password);
-
+            var authResponse = await _authService.Login(loginDto.Mail, loginDto.Password);
             if (authResponse == null)
             {
-                return Unauthorized(new CustomResponse<string>(false, "E-posta veya şifre hatalı!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "E-posta veya şifre hatalı!");
             }
 
-            SetRefreshTokenCookie(authResponse.refreshToken);
-
-            return Ok(new CustomResponse<AuthResponseDto>(true, "Giriş başarılı", authResponse));
+            SetRefreshTokenCookie(authResponse.RefreshToken);
+            return Ok(ApiResponse.Ok(authResponse, "Giriş başarılı"));
         }
 
         [HttpPost("refresh")]
-        public IActionResult Refresh([FromBody] RefreshTokenDto refreshTokenDto)
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenDto refreshTokenDto)
         {
-            // Eğer body'de token yoksa cookie'den almayı dene
-            string? token = refreshTokenDto.refreshToken;
+            string? token = refreshTokenDto.RefreshToken;
             if (string.IsNullOrEmpty(token))
             {
                 token = Request.Cookies["refreshToken"];
@@ -44,59 +43,57 @@ namespace Iroh.Controllers
 
             if (string.IsNullOrEmpty(token))
             {
-                return Unauthorized(new CustomResponse<string>(false, "Refresh token bulunamadı!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Refresh token bulunamadı!");
             }
 
-            var authResponse = _authService.RefreshToken(token);
-
+            var authResponse = await _authService.RefreshToken(token);
             if (authResponse == null)
             {
-                return Unauthorized(new CustomResponse<string>(false, "Geçersiz veya süresi dolmuş token!", null));
+                return Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Geçersiz veya süresi dolmuş token!");
             }
 
-            SetRefreshTokenCookie(authResponse.refreshToken);
+            SetRefreshTokenCookie(authResponse.RefreshToken);
+            return Ok(ApiResponse.Ok(authResponse, "Token başarıyla yenilendi"));
+        }
 
-            return Ok(new CustomResponse<AuthResponseDto>(true, "Token başarıyla yenilendi", authResponse));
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] UserRegisterDto registerDto)
+        {
+            // Dup e-posta → AuthService BusinessRuleException atar → handler 400 ProblemDetails.
+            var createdUser = await _authService.Register(new User
+            {
+                Name = registerDto.Name,
+                LastName = registerDto.LastName,
+                Mail = registerDto.Mail,
+                Password = registerDto.Password,
+                Phone = registerDto.Phone,
+                IsActive = true
+            });
+
+            var dto = new UserResponseDto
+            {
+                Id = createdUser.Id,
+                Name = createdUser.Name,
+                LastName = createdUser.LastName,
+                Mail = createdUser.Mail,
+                Phone = createdUser.Phone,
+                IsActive = createdUser.IsActive
+            };
+            return Ok(ApiResponse.Ok(dto, "Kullanıcı başarıyla oluşturuldu"));
         }
 
         private void SetRefreshTokenCookie(string refreshToken)
         {
+            var isDev = _env.IsDevelopment();
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true, // Frontend https ise true olmalı, Node.js tarafında true'ydu
-                SameSite = SameSiteMode.None,
+                // Prod (HTTPS, cross-site): Secure + SameSite=None. Dev (HTTP): Secure=false + Lax ki cookie set edilebilsin.
+                Secure = !isDev,
+                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.None,
                 Expires = DateTime.UtcNow.AddDays(7)
             };
             Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
-        }
-
-        [HttpPost("register")]
-        public IActionResult Register([FromBody] UserRegisterDto registerDto)
-        {
-            var user = new User
-            {
-                name = registerDto.name,
-                lastname = registerDto.lastName,
-                mail = registerDto.mail,
-                password = registerDto.password,
-                phone = registerDto.phone,
-                isActive = true
-            };
-
-            try
-            {
-                var createdUser = _authService.Register(user);
-                return Ok(new CustomResponse<User>(true, "Kullanıcı başarıyla oluşturuldu", createdUser));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new CustomResponse<string>(false, ex.Message, null));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new CustomResponse<string>(false, "Kayıt sırasında bir hata oluştu: " + ex.Message, null));
-            }
         }
     }
 }

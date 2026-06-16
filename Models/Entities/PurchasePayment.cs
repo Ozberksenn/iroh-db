@@ -5,13 +5,16 @@ namespace Iroh.Models.Entities
     [Table("purchasepayments", Schema = "public")]
     public class PurchasePayment : BaseEntity
     {
-        public int hours { get; set; }
-        public int price { get; set; }
+        [Column("hours")]
+        public decimal Hours { get; set; }
+
+        [Column("price")]
+        public decimal Price { get; set; }
 
         [Column("purchaseid")]
-        public int purchaseId { get; set; }
+        public int PurchaseId { get; set; }
 
-        [ForeignKey("purchaseId")]
-        public Purchase? purchase { get; set; }
+        [ForeignKey("PurchaseId")]
+        public Purchase? Purchase { get; set; }
     }
 }

@@ -3,11 +3,20 @@ using System.Security.Claims;
 using System.Text;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
+using Iroh.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Iroh.Services
 {
-    public class AuthService
+    public interface IAuthService
+    {
+        Task<AuthResponseDto?> Login(string mail, string password);
+        Task<AuthResponseDto?> RefreshToken(string refreshToken);
+        Task<User> Register(User user);
+    }
+
+    public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
@@ -18,11 +27,11 @@ namespace Iroh.Services
             _configuration = configuration;
         }
 
-        public AuthResponseDto? Login(string mail, string password)
+        public async Task<AuthResponseDto?> Login(string mail, string password)
         {
-            var user = _context.User.FirstOrDefault(u => u.mail == mail && u.isActive);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Mail == mail && u.IsActive);
             
-            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.password))
+            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
                 return null;
             }
@@ -30,7 +39,7 @@ namespace Iroh.Services
             return GenerateAuthResponse(user);
         }
 
-        public AuthResponseDto? RefreshToken(string refreshToken)
+        public async Task<AuthResponseDto?> RefreshToken(string refreshToken)
         {
             try
             {
@@ -53,7 +62,7 @@ namespace Iroh.Services
                 var jwtToken = (JwtSecurityToken)validatedToken;
                 var userId = int.Parse(jwtToken.Claims.First(x => x.Type == JwtRegisteredClaimNames.Sub).Value);
 
-                var user = _context.User.FirstOrDefault(u => u.id == userId && u.isActive);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
                 if (user == null) return null;
 
                 return GenerateAuthResponse(user);
@@ -64,18 +73,18 @@ namespace Iroh.Services
             }
         }
 
-        public User Register(User user)
+        public async Task<User> Register(User user)
         {
-            if (_context.User.Any(u => u.mail == user.mail))
+            if (await _context.Users.AnyAsync(u => u.Mail == user.Mail))
             {
-                throw new InvalidOperationException("Bu e-posta adresi zaten kullanımda!");
+                throw new BusinessRuleException("Bu e-posta adresi zaten kullanımda!");
             }
 
-            user.password = BCrypt.Net.BCrypt.HashPassword(user.password);
-            user.isActive = true;
+            user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            user.IsActive = true;
 
-            _context.User.Add(user);
-            _context.SaveChanges();
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
             return user;
         }
 
@@ -93,10 +102,10 @@ namespace Iroh.Services
 
             return new AuthResponseDto
             {
-                accessToken = accessToken,
-                refreshToken = refreshToken,
-                expiresIn = Convert.ToDouble(jwtSettings["ExpiryInMinutes"]) * 60,
-                refreshExpiresIn = Convert.ToDouble(jwtSettings["RefreshExpiryInDays"]) * 24 * 60 * 60
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresIn = Convert.ToDouble(jwtSettings["ExpiryInMinutes"]) * 60,
+                RefreshExpiresIn = Convert.ToDouble(jwtSettings["RefreshExpiryInDays"]) * 24 * 60 * 60
             };
         }
 
@@ -106,12 +115,16 @@ namespace Iroh.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            // Client JWT payload'unu ham olarak okuyor (core/session.ts -> parseJwt) ve "mail" + "id"
+            // claim'lerini bekliyor; Node backend de token'ı { id, mail } ile imzalıyordu. Pariteyi koru.
+            // "sub" ayrıca RefreshToken() tarafından okunduğu için bırakıldı.
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.mail),
+                new Claim("id", user.Id.ToString()),
+                new Claim("mail", user.Mail),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("name", user.name)
+                new Claim("name", user.Name)
             };
 
             var token = new JwtSecurityToken(

@@ -1,6 +1,6 @@
-using Iroh.Models.CustomResponses;
 using Iroh.Models.DTOs.Table;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,67 +10,45 @@ namespace Iroh.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-
     public class TableController : ControllerBase
     {
-        private readonly TableService _tableService;
+        private readonly ITableService _tableService;
 
-        public TableController(TableService tableService)
+        public TableController(ITableService tableService)
         {
             _tableService = tableService;
         }
 
+        // vw_tables: GET /api/table?name=
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get([FromQuery] string? name = null)
         {
-            var tables = _tableService.GetAll();
-            var response = new CustomResponse<List<Table>>(true, "Başarılı", tables);
-            return Ok(response);
+            var tables = await _tableService.GetAll(name);
+            return Ok(ApiResponse.Ok(tables, "Başarılı"));
         }
 
         [HttpPost]
-        public IActionResult Create(TableCreateDto tableCreateDto)
+        public async Task<IActionResult> Create(TableCreateDto tableCreateDto)
         {
-            var table = new Table
-            {
-                name = tableCreateDto.name
-            };
-            var createdTable = _tableService.Create(table);
-            var response = new CustomResponse<Table>(true, "Masa başarıyla oluşturuldu", createdTable);
-            return Ok(response);
+            var table = new Table { Name = tableCreateDto.Name };
+            var createdTable = await _tableService.Create(table);
+            return Ok(ApiResponse.Ok(new TableDto { Id = createdTable.Id, Name = createdTable.Name }, "Masa başarıyla oluşturuldu"));
         }
 
         [HttpPut]
-        public IActionResult Update(TableUpdateDto tableUpdateDto)
+        public async Task<IActionResult> Update(TableUpdateDto tableUpdateDto)
         {
-            var table = _tableService.GetById(tableUpdateDto.id);
-            if (table == null)
-            {
-                return NotFound();
-            }
-            table.name = tableUpdateDto.name;
-            table.updatedAt = DateTime.UtcNow;
-
-            var updatedTable = _tableService.Update(table);
-            var response = new CustomResponse<Table>(true, "Masa başarıyla güncellendi", updatedTable);
-            return Ok(response);
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var updatedTable = await _tableService.Update(tableUpdateDto);
+            return Ok(ApiResponse.Ok(new TableDto { Id = updatedTable.Id, Name = updatedTable.Name }, "Masa başarıyla güncellendi"));
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(long id)
+        public async Task<IActionResult> Delete(int id)
         {
-            try
-            {
-                await _tableService.Delete(id);
-                var response = new CustomResponse<string>(true, "Masa başarıyla silindi", null);
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                // SQL Prosedüründen gelen "aktif rezervasyon var" hatası burada yakalanacak
-                var errorResponse = new CustomResponse<string>(false, ex.Message, null);
-                return BadRequest(errorResponse);
-            }
+            // Aktif rezervasyon → servis BusinessRuleException atar → handler 400.
+            await _tableService.Delete(id);
+            return Ok(ApiResponse.Ok<object?>(null, "Masa başarıyla silindi"));
         }
     }
 }

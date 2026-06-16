@@ -1,35 +1,30 @@
 using Iroh.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class PurchasePaymentService
+    public interface IPurchasePaymentService
+    {
+        Task<List<PurchasePayment>> GetAll();
+        Task<PurchasePayment> Create(PurchasePayment purchasePayment);
+    }
+
+    public class PurchasePaymentService : IPurchasePaymentService
     {
         private readonly AppDbContext _context;
         public PurchasePaymentService(AppDbContext context)
         {
             _context = context;
         }
-        public List<PurchasePayment> GetAll()
-        {
-            return _context.purchasePayments.ToList();
-        }
 
-        public Purchase GetById(int id)
-        {
-            var purchase = _context.Purchase.Find(id);
-            if (purchase == null)
-            {
-                throw new KeyNotFoundException("Purchase not found");
-            }
-            return purchase;
-        }
+        public async Task<List<PurchasePayment>> GetAll() =>
+            await _context.PurchasePayments.AsNoTracking().ToListAsync();
 
-        public PurchasePayment Create(PurchasePayment purchasePayment)
+        public async Task<PurchasePayment> Create(PurchasePayment purchasePayment)
         {
-            _context.purchasePayments.Add(purchasePayment);
-            _context.SaveChanges();
+            _context.PurchasePayments.Add(purchasePayment);
+            await _context.SaveChangesAsync();
             return purchasePayment;
         }
-
     }
 }

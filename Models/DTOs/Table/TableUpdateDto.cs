@@ -5,9 +5,9 @@ namespace Iroh.Models.DTOs.Table
     public class TableUpdateDto
     {
         [Required]
-        public int id { get; set; }
+        public int Id { get; set; }
 
         [Required]
-        public required string name { get; set; }
+        public required string Name { get; set; }
     }
 }

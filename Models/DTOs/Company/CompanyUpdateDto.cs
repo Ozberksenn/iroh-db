@@ -5,12 +5,12 @@ namespace Iroh.Models.DTOs.Company
     public class CompanyUpdateDto
     {
         [Required]
-        public int id { get; set; }
+        public int Id { get; set; }
 
-        public required string name { get; set; }
+        public required string Name { get; set; }
 
-        public required int firstHourPrice { get; set; }
+        public required int FirstHourPrice { get; set; }
 
-        public required int additionalHalfHourPrice { get; set; }
+        public required int AdditionalHalfHourPrice { get; set; }
     }
 }

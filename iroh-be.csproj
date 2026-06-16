@@ -2,10 +2,20 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
+    <!-- Makinede net9 runtime yok (yalnızca net10.x). Major roll-forward ile net10 üzerinde çalışır.
+         Kalıcı karar (net10'a bump / net9 runtime kurma) MIGRATION-PLAN P0'da. -->
+    <RollForward>Major</RollForward>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>iroh_be</RootNamespace>
   </PropertyGroup>
+
+  <!-- Test projesi tests/ altında ayrı derlenir; bu web projesi (SDK globbing) onu dahil etmemeli. -->
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Content Remove="tests/**/*" />
+    <None Remove="tests/**/*" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />

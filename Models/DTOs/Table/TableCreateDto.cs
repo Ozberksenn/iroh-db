@@ -5,6 +5,6 @@ namespace Iroh.Models.DTOs.Table
     public class TableCreateDto
     {
         [Required]
-        public required string name { get; set; }
+        public required string Name { get; set; }
     }
 }

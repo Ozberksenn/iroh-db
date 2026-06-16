@@ -7,16 +7,16 @@ namespace Iroh.Models.DTOs.Customer
     public class CustomerUpdateDto
     {
         [Required]
-        public int id { get; set; }
+        public int Id { get; set; }
 
         [Required]
-        public required string name { get; set; }
+        public required string Name { get; set; }
 
-        public string? lastName { get; set; }
+        public string? LastName { get; set; }
 
-        public string? phone { get; set; }
+        public string? Phone { get; set; }
 
-        public string? mail { get; set; }
+        public string? Mail { get; set; }
 
     }
 }

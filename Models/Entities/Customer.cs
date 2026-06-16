@@ -1,27 +1,29 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Iroh.Models.Entities;
 
 namespace Iroh.Models.Entities
 {
     [Table("customers", Schema = "public")]
     public class Customer : BaseEntity
     {
-        public required string name { get; set; }
+        [Column("name")]
+        public required string Name { get; set; }
 
         [Column("lastname")]
-        public string? lastName { get; set; }
+        public string? LastName { get; set; }
 
-        public string? phone { get; set; }
+        [Column("phone")]
+        public string? Phone { get; set; }
 
-        public string? mail { get; set; }
+        [Column("mail")]
+        public string? Mail { get; set; }
 
         [Column("createdat")]
-        public DateTime createdAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("updatedat")]
-        public DateTime? updatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         [Column("isdeleted")]
-        public bool isDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
     }
 }

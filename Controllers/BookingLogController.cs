@@ -1,7 +1,7 @@
-
-using Iroh.Models.CustomResponses;
+using Iroh.Models.DTOs.Booking;
 using Iroh.Models.DTOs.BookingLog;
 using Iroh.Models.Entities;
+using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,58 +11,42 @@ namespace Iroh.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
+    public class BookingLogController : ControllerBase
+    {
+        private readonly IBookingLogService _bookingLogService;
 
-    public class BookingLogController : ControllerBase    {
-        private readonly BookingLogService _bookingLogService;
-
-        public BookingLogController(BookingLogService bookingLogService)
+        public BookingLogController(IBookingLogService bookingLogService)
         {
             _bookingLogService = bookingLogService;
         }
 
         [HttpGet]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            var bookingLogs = _bookingLogService.GetAll();
-            var response = new CustomResponse<List<BookingLog>>(true, "Başırlı", bookingLogs);
-            return Ok(response);
+            var bookingLogs = await _bookingLogService.GetAll();
+            return Ok(ApiResponse.Ok(bookingLogs.Select(BookingLogDto.From).ToList(), "Başarılı"));
         }
 
         [HttpPost]
-        public IActionResult Create(BookingLogInsertDto dto)
+        public async Task<IActionResult> Create(BookingLogInsertDto dto)
         {
             var bookingLog = new BookingLog
             {
-                bookingId = dto.bookingId,
-                time = dto.time,
-                type = dto.type,
-                userId = dto.userId
+                BookingId = dto.BookingId,
+                Time = dto.Time,
+                Type = dto.Type,
+                UserId = dto.UserId
             };
-            var result = _bookingLogService.Create(bookingLog);
-            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Oluşturuldu.", result);
-            return Ok(response);
+            var result = await _bookingLogService.Create(bookingLog);
+            return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Oluşturuldu."));
         }
 
-        [HttpPut("{id}")]
-        public IActionResult Update(int id, [FromBody] BookingLogUpdateDto dto)
+        [HttpPut]
+        public async Task<IActionResult> Update([FromBody] BookingLogUpdateDto dto)
         {
-            var bookingLog = _bookingLogService.GetById(id);
-            if (bookingLog == null)
-            {
-                var errorResponse = new CustomResponse<BookingLog>(false, "Kayıt bulunamadı", null);
-                return NotFound(errorResponse);
-            }
-
-            bookingLog.bookingId = dto.bookingId;
-            bookingLog.time = dto.time;
-            bookingLog.type = dto.type;
-            bookingLog.userId = dto.userId;
-
-            var result = _bookingLogService.Update(bookingLog);
-            var response = new CustomResponse<BookingLog>(true, "Booking Log Başarıyla Güncellendi.", result);
-            return Ok(response);
+            // Kayıt yoksa servis NotFoundException atar → handler 404.
+            var result = await _bookingLogService.Update(dto);
+            return Ok(ApiResponse.Ok(BookingLogDto.From(result), "Booking Log Başarıyla Güncellendi."));
         }
-
     }
-
 }

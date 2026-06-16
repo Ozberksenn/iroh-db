@@ -1,10 +1,24 @@
 using Iroh.Models.Entities;
 using Iroh.Models.DTOs.Purchase;
+using Iroh.Models.DTOs.Booking;
+using Iroh.Domain;
+using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Iroh.Services
 {
-    public class PurchaseService
+    public interface IPurchaseService
+    {
+        Task<List<PurchaseListDto>> GetAll();
+        Purchase GetById(int id);
+        Task<List<CustomerPurchaseResultDto>> GetByCustomerId(int customerId);
+        Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(int purchaseId);
+        Task Create(Purchase purchase);
+        Task Update(PurchaseUpdateDto dto);
+        Task Delete(int id);
+    }
+
+    public class PurchaseService : IPurchaseService
     {
         private readonly AppDbContext _context;
         public PurchaseService(AppDbContext context)
@@ -12,15 +26,25 @@ namespace Iroh.Services
             _context = context;
         }
 
-        public List<Purchase> GetAll()
+        // vw_purchases: id, hours, price, customerId, startDate, endDate
+        public async Task<List<PurchaseListDto>> GetAll()
         {
-            // vw_purchases view'ını kullanabiliriz ama entity eşleşmesi için doğrudan tabloyu da çekebiliriz
-            return _context.Purchase.ToList();
+            return await _context.Purchases
+                .Select(p => new PurchaseListDto
+                {
+                    Id = p.Id,
+                    Hours = p.Hours,
+                    Price = p.Price,
+                    CustomerId = p.CustomerId,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate
+                })
+                .ToListAsync();
         }
 
         public Purchase GetById(int id)
         {
-            var purchase = _context.Purchase.Find(id);
+            var purchase = _context.Purchases.Find(id);
             if (purchase == null)
             {
                 throw new KeyNotFoundException("Purchase not found");
@@ -28,88 +52,128 @@ namespace Iroh.Services
             return purchase;
         }
 
-        public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(long customerId)
+        // fn_get_purchase_by_customer_id: müşterinin paketleri + usedMinutes (DAKİKA) + gerçek payments listesi.
+        public async Task<List<CustomerPurchaseResultDto>> GetByCustomerId(int customerId)
         {
-            var purchases = await _context.Purchase
-                .Where(p => p.customerId == customerId)
-                .OrderByDescending(p => p.createdAt)
-                .Select(p => new CustomerPurchaseResultDto
-                {
-                    id = p.id,
-                    customerId = p.customerId,
-                    startDate = p.startDate,
-                    endDate = p.endDate,
-                    hours = p.hours,
-                    price = p.price,
-                    usedHours = _context.purchaseBookings
-                        .Where(pb => pb.purchaseId == p.id)
-                        .Join(_context.Booking, pb => pb.bookingId, b => b.id, (pb, b) => b)
-                        .Sum(b => b.subscriptionEndTime.HasValue && b.subscriptionStartTime.HasValue 
-                            ? (b.subscriptionEndTime.Value - b.subscriptionStartTime.Value).TotalMinutes / 60.0 
-                            : 0.0),
-                    payments = "[]" // TODO: Implement payments serialization if needed
-                })
+            var purchases = await _context.Purchases
+                .AsNoTracking()
+                .Where(p => p.CustomerId == customerId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+            if (purchases.Count == 0) return new();
+
+            var purchaseIds = purchases.Select(p => p.Id).ToList();
+            var payments = await _context.PurchasePayments
+                .AsNoTracking()
+                .Where(pp => purchaseIds.Contains(pp.PurchaseId))
+                .ToListAsync();
+            var linked = await _context.PurchaseBookings
+                .Where(pb => purchaseIds.Contains(pb.PurchaseId))
+                .Join(_context.Bookings, pb => pb.BookingId, b => b.Id,
+                      (pb, b) => new { pb.PurchaseId, b.SubscriptionStartTime, b.SubscriptionEndTime })
                 .ToListAsync();
 
-            return purchases;
+            // fn_get_used_hours: Σ(subEnd - subStart) dakika (eski .NET /60 yapıp yanlış HOURS dönüyordu).
+            double UsedMinutesFor(int pid) => linked
+                .Where(x => x.PurchaseId == pid && x.SubscriptionStartTime.HasValue && x.SubscriptionEndTime.HasValue)
+                .Sum(x => (x.SubscriptionEndTime!.Value - x.SubscriptionStartTime!.Value).TotalMinutes);
+
+            return purchases.Select(p => new CustomerPurchaseResultDto
+            {
+                Id = p.Id,
+                CustomerId = p.CustomerId,
+                StartDate = p.StartDate,
+                EndDate = p.EndDate,
+                Hours = (double)p.Hours,
+                Price = (double)p.Price,
+                UsedHours = UsedMinutesFor(p.Id),
+                Payments = payments.Where(pp => pp.PurchaseId == p.Id)
+                    .Select(pp => new PaymentDto { Id = pp.Id, PurchaseId = pp.PurchaseId, Hours = pp.Hours, Price = pp.Price })
+                    .ToList()
+            }).ToList();
         }
 
-        public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(long purchaseId)
+        // usp_get_purchase_bookings_by_id: pakete bağlı bookings (nested booking). Proc INNER JOIN tables → sadece masası olanlar.
+        // Proc'taki bozuk b.CustomerId (yok olan kolon) yerine customerId child.ParentId'den türetilir (D7).
+        public async Task<List<PurchaseBookingResultDto>> GetPurchaseBookings(int purchaseId)
         {
-            return await _context.purchaseBookings
-                .Where(pb => pb.purchaseId == purchaseId)
-                .Select(pb => new PurchaseBookingResultDto
+            var rows = await _context.PurchaseBookings
+                .Where(pb => pb.PurchaseId == purchaseId && pb.Booking != null && pb.Booking.TableId != null)
+                .Select(pb => new
                 {
-                    id = pb.id,
-                    purchase_id = pb.purchaseId,
-                    booking_id = pb.bookingId,
-                    booking = "{}" // TODO: Implement booking serialization if needed
+                    pb.Id,
+                    pb.PurchaseId,
+                    pb.BookingId,
+                    tableId = pb.Booking!.TableId,
+                    tableName = pb.Booking.Table != null ? pb.Booking.Table.Name : null,
+                    customerId = pb.Booking.Child != null ? (int?)pb.Booking.Child.ParentId : null,
+                    startTime = pb.Booking.StartTime,
+                    endTime = pb.Booking.EndTime,
+                    status = pb.Booking.Status,
+                    note = pb.Booking.Note
                 })
                 .ToListAsync();
+
+            return rows.Select(r => new PurchaseBookingResultDto
+            {
+                Id = r.Id,
+                purchase_id = r.PurchaseId,
+                booking_id = r.BookingId,
+                Booking = new BookingBriefDto
+                {
+                    Table = r.tableId != null ? new BookingTableDto { Id = r.tableId, Name = r.tableName } : null,
+                    TableId = r.tableId,
+                    CustomerId = r.customerId,
+                    StartTime = r.startTime,
+                    EndTime = r.endTime,
+                    Status = r.status.ToString(),
+                    Note = r.note
+                }
+            }).ToList();
         }
 
         public async Task Create(Purchase purchase)
         {
-            if (purchase.customerId == 999999)
+            if (purchase.CustomerId == SystemConstants.GuestCustomerId)
             {
-                throw new Exception("Sistem Misafiri kaydına paket tanımlanamaz!");
+                throw new BusinessRuleException("Sistem Misafiri kaydına paket tanımlanamaz!");
             }
-            purchase.createdAt = DateTime.Now;
-            _context.Purchase.Add(purchase);
+            purchase.CreatedAt = DateTime.Now;
+            _context.Purchases.Add(purchase);
             await _context.SaveChangesAsync();
         }
 
-        public async Task Update(long id, int hours, int price, long customerId, DateTime? startDate, DateTime? endDate)
+        // usp_update_purchase: kullanım/ödeme varsa ana saat değiştirilemez.
+        public async Task Update(PurchaseUpdateDto dto)
         {
-            var purchase = await _context.Purchase.FindAsync((int)id);
+            var purchase = await _context.Purchases.FindAsync(dto.Id);
             if (purchase == null)
             {
-                throw new Exception("Paket bulunamadı!");
+                throw new NotFoundException("Paket bulunamadı!");
             }
 
-            // usp_update_purchase logic: check usage and payments
-            var hasUsage = await _context.purchaseBookings.AnyAsync(pb => pb.purchaseId == id);
-            var hasPayments = await _context.purchasePayments.AnyAsync(pp => pp.purchaseId == (int)id);
+            var hasUsage = await _context.PurchaseBookings.AnyAsync(pb => pb.PurchaseId == dto.Id);
+            var hasPayments = await _context.PurchasePayments.AnyAsync(pp => pp.PurchaseId == dto.Id);
 
-            if (purchase.hours != hours && (hasUsage || hasPayments))
+            if (purchase.Hours != dto.Hours && (hasUsage || hasPayments))
             {
-                throw new Exception("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
+                throw new BusinessRuleException("Bu paket üzerinde kullanım veya ek ödeme mevcut. Ana saat bilgisi değiştirilemez! Lütfen düzeltme için ek ödeme (payment) ekleyin.");
             }
 
-            purchase.hours = hours;
-            purchase.price = price;
-            purchase.customerId = (int)customerId;
-            purchase.startDate = startDate;
-            purchase.endDate = endDate;
-            purchase.updatedAt = DateTime.Now;
+            purchase.Hours = dto.Hours;
+            purchase.Price = dto.Price;
+            purchase.CustomerId = dto.CustomerId;
+            purchase.StartDate = dto.StartDate;
+            purchase.EndDate = dto.EndDate;
+            purchase.UpdatedAt = DateTime.Now;
 
             await _context.SaveChangesAsync();
         }
 
-        public async Task Delete(long id)
+        public async Task Delete(int id)
         {
             // Bu işlem güvenlik gereği engellenmiştir
-            throw new Exception("Güvenlik ve denetim gereği satın alım kayıtları silinemez! Yanlış bir işlem yaptıysanız lütfen ek ödeme (payment) ile bakiyeyi dengeleyin veya yöneticiye başvurun.");
+            throw new BusinessRuleException("Güvenlik ve denetim gereği satın alım kayıtları silinemez! Yanlış bir işlem yaptıysanız lütfen ek ödeme (payment) ile bakiyeyi dengeleyin veya yöneticiye başvurun.");
         }
     }
 }
