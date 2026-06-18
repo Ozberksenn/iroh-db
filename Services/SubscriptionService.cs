@@ -24,11 +24,10 @@ namespace Iroh.Services
         // (active-bookings 5 kademe, search-unified 4 kademe — farklı, o yüzden burada ham bırakılıyor).
         public sealed class ParentSubscription
         {
-            public Purchase? BestPurchase { get; init; }
+            public PurchaseInfoDto? BestPurchase { get; init; }   // cüzdandan türetilen sentetik paket (entity değil)
             public double BestRemainingMinutes { get; init; }
             public bool BestIsDateValid { get; init; }
             public double BestUsedMinutes { get; init; }
-            public List<PurchasePayment> BestPayments { get; init; } = new();
             public bool HasUpcoming { get; init; }
             public bool HasAny { get; init; }
         }
@@ -68,7 +67,7 @@ namespace Iroh.Services
 
                 result[pid] = new ParentSubscription
                 {
-                    BestPurchase = new Purchase
+                    BestPurchase = new PurchaseInfoDto
                     {
                         Id = wallet.Id,
                         CustomerId = pid,
@@ -76,12 +75,12 @@ namespace Iroh.Services
                         Price = 0m,
                         StartDate = wallet.ValidFrom,
                         EndDate = wallet.ValidTo,
-                        CreatedAt = now
+                        UsedHours = used,
+                        Payments = new()
                     },
                     BestRemainingMinutes = wallet.TimeBalanceMinutes,
                     BestIsDateValid = isValid,
                     BestUsedMinutes = used,
-                    BestPayments = new(),
                     HasUpcoming = hasUpcoming,
                     HasAny = hasCredit
                 };
@@ -125,22 +124,7 @@ namespace Iroh.Services
                         // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — eski 5 dalın birebir karşılığı.
                         tier = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
 
-                        if (sub.BestPurchase != null)
-                        {
-                            pinfo = new PurchaseInfoDto
-                            {
-                                Id = sub.BestPurchase.Id,
-                                Hours = sub.BestPurchase.Hours,
-                                Price = sub.BestPurchase.Price,
-                                StartDate = sub.BestPurchase.StartDate,
-                                EndDate = sub.BestPurchase.EndDate,
-                                CustomerId = sub.BestPurchase.CustomerId,
-                                UsedHours = sub.BestUsedMinutes,
-                                Payments = sub.BestPayments
-                                    .Select(pp => new PaymentDto { Id = pp.Id, PurchaseId = pp.PurchaseId, Hours = pp.Hours, Price = pp.Price })
-                                    .ToList()
-                            };
-                        }
+                        pinfo = sub.BestPurchase;   // cüzdandan türetilen sentetik paket (ComputeForParents)
                     }
                     customer = new ActiveBookingCustomerDto
                     {

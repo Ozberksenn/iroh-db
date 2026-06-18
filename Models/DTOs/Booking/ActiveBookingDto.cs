@@ -52,14 +52,6 @@ namespace Iroh.Models.DTOs.Booking
         public int PurchaseId { get; set; }
         public decimal Hours { get; set; }
         public decimal Price { get; set; }
-
-        public static PaymentDto From(Iroh.Models.Entities.PurchasePayment p) => new()
-        {
-            Id = p.Id,
-            PurchaseId = p.PurchaseId,
-            Hours = p.Hours,
-            Price = p.Price
-        };
     }
 
     public class BookingLogDto

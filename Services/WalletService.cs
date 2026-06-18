@@ -23,10 +23,6 @@ namespace Iroh.Services
         Task<CloseBookingResultDto> CloseBooking(int bookingId, SettlementMode settlement, int? userId,
             DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null);
 
-        // Geçiş aynası: eski yolla (BookingService.Update) tamamlanan, pakete bağlı oturumu cüzdana
-        // TAM süre tüketimi olarak yansıtır (borç kavramı yok — bakiye eksiye düşebilir). İdempotent.
-        Task RecordConsumption(int bookingId, int? userId);
-
         // Borç ödeme (serbest tutar). + Payment.
         Task<WalletDto> Settle(int customerId, decimal amount, int? userId);
 
@@ -257,37 +253,6 @@ namespace Iroh.Services
 
             result.WalletAfter = await GetWallet(parentId.Value);
             return result;
-        }
-
-        public async Task RecordConsumption(int bookingId, int? userId)
-        {
-            // İdempotent: bu booking zaten tüketildiyse çık.
-            if (await _context.TimeLedger.AnyAsync(e => e.BookingId == bookingId && e.Type == TimeLedgerType.Consumption))
-                return;
-
-            var booking = await _context.Bookings.AsNoTracking().FirstOrDefaultAsync(b => b.Id == bookingId);
-            if (booking == null || !booking.SubscriptionStartTime.HasValue || !booking.SubscriptionEndTime.HasValue)
-                return;
-
-            // Sadece bir pakete bağlı (abonelik) oturumlar cüzdanı borçlandırır — eski UsedMinutesFor paritesi.
-            var link = await _context.PurchaseBookings.AsNoTracking().FirstOrDefaultAsync(pb => pb.BookingId == bookingId);
-            if (link == null) return;
-            var purchase = await _context.Purchases.AsNoTracking().FirstOrDefaultAsync(p => p.Id == link.PurchaseId);
-            if (purchase == null || purchase.CustomerId == SystemConstants.GuestCustomerId) return;
-
-            var dur = (int)Math.Round((booking.SubscriptionEndTime.Value - booking.SubscriptionStartTime.Value).TotalMinutes);
-            if (dur <= 0) return;
-
-            var wallet = await GetOrCreateWallet(purchase.CustomerId);
-            _context.TimeLedger.Add(new TimeLedgerEntry
-            {
-                WalletId = wallet.Id, Type = TimeLedgerType.Consumption,
-                MinutesDelta = -dur, BookingId = bookingId, UserId = userId,
-                Reason = "Oturum tüketimi (eski yol)", CreatedAt = DateTime.UtcNow
-            });
-            wallet.TimeBalanceMinutes -= dur;
-            wallet.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
         }
 
         public async Task<WalletDto> Settle(int customerId, decimal amount, int? userId)

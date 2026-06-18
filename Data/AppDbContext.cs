@@ -13,9 +13,6 @@ public class AppDbContext : DbContext
     public DbSet<Booking> Bookings { get; set; }
     public DbSet<BookingLog> BookingLogs { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<Purchase> Purchases { get; set; }
-    public DbSet<PurchaseBooking> PurchaseBookings { get; set; }
-    public DbSet<PurchasePayment> PurchasePayments { get; set; }
     public DbSet<Package> Packages { get; set; }
 
     public DbSet<Child> Children { get; set; }
@@ -24,8 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<Wallet> Wallets { get; set; }
     public DbSet<TimeLedgerEntry> TimeLedger { get; set; }
     public DbSet<CashLedgerEntry> CashLedger { get; set; }
-    // NOT: UnifiedSearchResultDto / CustomerPurchaseResultDto / PurchaseBookingResultDto artık
-    // DbSet/HasNoKey DEĞİL — LINQ projeksiyon hedefi olarak kullanılıyorlar (FromSql kaldırıldı).
+    // NOT: UnifiedSearchResultDto DbSet/HasNoKey DEĞİL — LINQ projeksiyon hedefi (FromSql kaldırıldı).
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -69,16 +69,6 @@ namespace Iroh.Tests
         }
 
         [Fact]
-        public void PaymentDto_From_MapsPurchasePayment()
-        {
-            var dto = PaymentDto.From(new PurchasePayment { Id = 11, PurchaseId = 10, Hours = 1.5m, Price = 75m });
-            Assert.Equal(11, dto.Id);
-            Assert.Equal(10, dto.PurchaseId);
-            Assert.Equal(1.5m, dto.Hours);   // numeric→decimal: budanmamalı
-            Assert.Equal(75m, dto.Price);
-        }
-
-        [Fact]
         public void BookingLogDto_From_SerializesTypeEnumAsString()
         {
             var t = new DateTime(2026, 1, 2, 3, 4, 5);

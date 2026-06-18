@@ -183,32 +183,6 @@ namespace Iroh.Tests
         }
 
         [Fact]
-        public async Task RecordConsumption_LegacyMirror_FullDebit_AndIdempotent()
-        {
-            var db = Guid.NewGuid().ToString();
-            var now = DateTime.UtcNow;
-            using (var c = NewContext(db))
-            {
-                c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
-                c.Purchases.Add(new Purchase { Id = 10, CustomerId = 1, Hours = 2m, Price = 1m, CreatedAt = now });
-                c.Bookings.Add(new Booking { Id = 3, Status = BookingStatus.Completed, SubscriptionStartTime = now, SubscriptionEndTime = now.AddMinutes(45) });
-                c.PurchaseBookings.Add(new PurchaseBooking { Id = 5, PurchaseId = 10, BookingId = 3 });
-                await c.SaveChangesAsync();
-            }
-
-            using (var c = NewContext(db))
-                await NewService(c).RecordConsumption(3, null);
-
-            using (var c = NewContext(db))
-            {
-                await NewService(c).RecordConsumption(3, null);   // idempotent
-                var w = await c.Wallets.FirstAsync(x => x.CustomerId == 1);
-                Assert.Equal(-45, w.TimeBalanceMinutes);          // tam süre düşüldü (borç değil, eksi bakiye)
-                Assert.Equal(1, await c.TimeLedger.CountAsync(e => e.BookingId == 3 && e.Type == TimeLedgerType.Consumption));
-            }
-        }
-
-        [Fact]
         public async Task CloseBooking_GuestOrNoParent_HasNoWallet()
         {
             var db = Guid.NewGuid().ToString();
