@@ -1,5 +1,7 @@
 using Iroh.Models.DTOs.Booking;
+using Iroh.Models.DTOs.Wallet;
 using Iroh.Models.Entities;
+using Iroh.Models.Enums;
 using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,12 +16,17 @@ namespace Iroh.Controllers
     {
         private readonly IBookingService _bookingService;
         private readonly ISubscriptionService _subscriptionService;
+        private readonly IWalletService _walletService;
 
-        public BookingController(IBookingService bookingService, ISubscriptionService subscriptionService)
+        public BookingController(IBookingService bookingService, ISubscriptionService subscriptionService, IWalletService walletService)
         {
             _bookingService = bookingService;
             _subscriptionService = subscriptionService;
+            _walletService = walletService;
         }
+
+        private int? CurrentUserId() =>
+            int.TryParse(User.FindFirst("id")?.Value, out var id) ? id : (int?)null;
 
         // usp_get_bookings: GET /api/booking?page=&size=&status=&name=&customerId=&childId=&startTime=&endTime=&tableId=
         [HttpGet]
@@ -70,6 +77,18 @@ namespace Iroh.Controllers
             // Kayıt yoksa servis NotFoundException atar → handler 404.
             var updated = await _bookingService.Update(bookingUpdateDto.Id, bookingUpdateDto);
             return Ok(ApiResponse.Ok(BookingDto.From(updated), "Başarılı"));
+        }
+
+        // Oturum kapanışı (docs/wallet-redesign.md §4): kapsama (BÖL) → zaman tüketimi +
+        // kapsanmayan süre için ücret. settlement: "PayNow" (peşin) | "Debt" (borca yaz).
+        [HttpPost("{id}/close")]
+        public async Task<IActionResult> Close(int id, BookingCloseDto dto)
+        {
+            var mode = Enum.TryParse<SettlementMode>(dto.Settlement, ignoreCase: true, out var m)
+                ? m : SettlementMode.PayNow;
+            var result = await _walletService.CloseBooking(id, mode, CurrentUserId(),
+                dto.SubscriptionEndTime, dto.EndTime, dto.Note, dto.TableId, dto.ChildId);
+            return Ok(ApiResponse.Ok(result, "Oturum kapatıldı"));
         }
     }
 }

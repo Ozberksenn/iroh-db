@@ -76,12 +76,8 @@ namespace Iroh.Services
                 subs.TryGetValue(r.parentId, out var sub);
                 sub ??= new SubscriptionService.ParentSubscription();
 
-                // 5 kademe: eski fn_search_unified + aktif-seans yoluyla parite (süresi geçmiş abone = Subscriber).
-                var status = (sub.BestIsDateValid && sub.BestRemainingMinutes > 0) ? "ActiveSubscriber"
-                           : sub.BestIsDateValid ? "OverageSubscriber"
-                           : sub.HasUpcoming ? "UpcomingSubscriber"
-                           : sub.HasAny ? "Subscriber"
-                           : "Customer";
+                // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — active-bookings ile ortak.
+                var status = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
 
                 return new
                 {

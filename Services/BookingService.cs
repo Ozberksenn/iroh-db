@@ -145,21 +145,8 @@ namespace Iroh.Services
             existingBooking.SubscriptionStartTime = updatedBooking.SubscriptionStartTime ?? existingBooking.SubscriptionStartTime;
             existingBooking.SubscriptionEndTime = updatedBooking.SubscriptionEndTime ?? existingBooking.SubscriptionEndTime;
 
-            // Eğer bir paket (Purchase) kullanılıyorsa, onu da bağla (usp_update_booking logic)
-            if (updatedBooking.PurchaseId.HasValue)
-            {
-                var exists = await _context.PurchaseBookings.AnyAsync(pb => pb.BookingId == existingBooking.Id && pb.PurchaseId == updatedBooking.PurchaseId.Value);
-                if (!exists)
-                {
-                    _context.PurchaseBookings.Add(new PurchaseBooking
-                    {
-                        BookingId = existingBooking.Id,
-                        PurchaseId = updatedBooking.PurchaseId.Value
-                    });
-                }
-            }
-
             await _context.SaveChangesAsync();
+
             return existingBooking;
         }
     }

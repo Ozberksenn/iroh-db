@@ -68,13 +68,13 @@ builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingLogService, BookingLogService>();
-builder.Services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
-builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IPricingService, PricingService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 builder.Services.AddControllers(options =>
     {

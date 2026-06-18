@@ -6,8 +6,8 @@ using Xunit;
 
 namespace Iroh.Tests
 {
-    // Billing çekirdeği (SubscriptionService) — proc fn_get_used_hours + parent_best_package mantığının C# karşılığı.
-    // EF InMemory ile test edilebilir: sorgular Where/Join/Include kullanır, ILike YOK.
+    // Billing okuma çekirdeği (SubscriptionService) — ARTIK cüzdan/ledger'dan okur (docs/wallet-redesign.md).
+    // ParentSubscription şekli korunur; BestPurchase cüzdandan türetilen sentetik pakettir.
     public class SubscriptionServiceTests
     {
         private static AppDbContext NewContext(string db) =>
@@ -15,64 +15,59 @@ namespace Iroh.Tests
                 .UseInMemoryDatabase(db).Options);
 
         [Fact]
-        public async Task ComputeForParents_UsedMinutes_And_Remaining_Are_Correct()
+        public async Task ComputeForParents_UsedMinutes_And_Remaining_FromWallet()
         {
             var db = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
             using (var c = NewContext(db))
             {
                 c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
-                // 2 saat paket + 1 saat ek ödeme = (2+1)*60 = 180 dk toplam.
-                c.Purchases.Add(new Purchase { Id = 10, CustomerId = 1, Hours = 2m, Price = 100m, CreatedAt = now, StartDate = now.AddDays(-1), EndDate = now.AddDays(1) });
-                c.PurchasePayments.Add(new PurchasePayment { Id = 20, PurchaseId = 10, Hours = 1m, Price = 50m });
-                // 30 dk kullanılmış oturum.
-                c.Bookings.Add(new Booking { Id = 30, Status = BookingStatus.Completed, SubscriptionStartTime = now, SubscriptionEndTime = now.AddMinutes(30) });
-                c.PurchaseBookings.Add(new PurchaseBooking { Id = 40, PurchaseId = 10, BookingId = 30 });
-                await c.SaveChangesAsync();
-            }
-
-            using (var c = NewContext(db))
-            {
-                var svc = new SubscriptionService(c);
-                var result = await svc.ComputeForParents(new[] { 1 });
-
-                Assert.True(result.ContainsKey(1));
-                var sub = result[1];
-                Assert.True(sub.HasAny);
-                Assert.False(sub.HasUpcoming);
-                Assert.True(sub.BestIsDateValid);
-                Assert.Equal(30d, sub.BestUsedMinutes, 5);
-                Assert.Equal(150d, sub.BestRemainingMinutes, 5); // 180 - 30
-                Assert.Equal(10, sub.BestPurchase!.Id);
-            }
-        }
-
-        [Fact]
-        public async Task ComputeForParents_PrefersValidPackage_OverExpired()
-        {
-            var db = Guid.NewGuid().ToString();
-            var now = DateTime.UtcNow;
-            using (var c = NewContext(db))
-            {
-                c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
-                // Süresi geçmiş ama büyük paket.
-                c.Purchases.Add(new Purchase { Id = 10, CustomerId = 1, Hours = 5m, Price = 1m, CreatedAt = now, StartDate = now.AddDays(-10), EndDate = now.AddDays(-5) });
-                // Geçerli ve bakiyesi olan paket.
-                c.Purchases.Add(new Purchase { Id = 11, CustomerId = 1, Hours = 1m, Price = 1m, CreatedAt = now, StartDate = now.AddDays(-1), EndDate = now.AddDays(1) });
+                // 180 dk kredi, 30 dk tüketim → bakiye 150.
+                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1, TimeBalanceMinutes = 150, ValidFrom = now.AddDays(-1), ValidTo = now.AddDays(1) });
+                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Credit, MinutesDelta = 180 });
+                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Consumption, MinutesDelta = -30, BookingId = 30 });
                 await c.SaveChangesAsync();
             }
 
             using (var c = NewContext(db))
             {
                 var sub = (await new SubscriptionService(c).ComputeForParents(new[] { 1 }))[1];
+                Assert.True(sub.HasAny);
+                Assert.False(sub.HasUpcoming);
                 Assert.True(sub.BestIsDateValid);
-                Assert.Equal(11, sub.BestPurchase!.Id);          // geçerli olan seçilmeli
-                Assert.Equal(60d, sub.BestRemainingMinutes, 5);  // 1 saat = 60 dk, kullanım yok
+                Assert.Equal(30d, sub.BestUsedMinutes, 5);
+                Assert.Equal(150d, sub.BestRemainingMinutes, 5);
+                Assert.Equal(100, sub.BestPurchase!.Id);
+                Assert.Equal(3m, sub.BestPurchase.Hours);        // (150+30)/60 = 3 saat (sentetik)
             }
         }
 
         [Fact]
-        public async Task ComputeForParents_NoPurchases_YieldsEmptySubscription()
+        public async Task ComputeForParents_ExpiredWallet_IsNotDateValid()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+            {
+                c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
+                // Bakiyesi var ama geçerlilik penceresi geçmişte.
+                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1, TimeBalanceMinutes = 300, ValidFrom = now.AddDays(-10), ValidTo = now.AddDays(-5) });
+                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Credit, MinutesDelta = 300 });
+                await c.SaveChangesAsync();
+            }
+
+            using (var c = NewContext(db))
+            {
+                var sub = (await new SubscriptionService(c).ComputeForParents(new[] { 1 }))[1];
+                Assert.True(sub.HasAny);
+                Assert.False(sub.HasUpcoming);
+                Assert.False(sub.BestIsDateValid);               // süresi dolmuş
+                Assert.Equal(300d, sub.BestRemainingMinutes, 5);
+            }
+        }
+
+        [Fact]
+        public async Task ComputeForParents_NoWallet_YieldsEmptySubscription()
         {
             var db = Guid.NewGuid().ToString();
             using (var c = NewContext(db))
@@ -98,7 +93,8 @@ namespace Iroh.Tests
                 c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
                 c.Children.Add(new Child { Id = 2, ParentId = 1, Name = "Kid", IsDeleted = false });
                 c.Bookings.Add(new Booking { Id = 3, ChildId = 2, Status = BookingStatus.Active });
-                c.Purchases.Add(new Purchase { Id = 10, CustomerId = 1, Hours = 2m, Price = 1m, CreatedAt = now, StartDate = now.AddDays(-1), EndDate = now.AddDays(1) });
+                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1, TimeBalanceMinutes = 120, ValidFrom = now.AddDays(-1), ValidTo = now.AddDays(1) });
+                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Credit, MinutesDelta = 120 });
                 await c.SaveChangesAsync();
             }
             using (var c = NewContext(db))
@@ -111,7 +107,7 @@ namespace Iroh.Tests
         }
 
         [Fact]
-        public async Task GetActiveBookings_NoPurchase_IsPlainCustomer()
+        public async Task GetActiveBookings_NoWallet_IsPlainCustomer()
         {
             var db = Guid.NewGuid().ToString();
             using (var c = NewContext(db))

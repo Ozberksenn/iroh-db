@@ -54,14 +54,16 @@ namespace Iroh.Services
 
             if (!string.IsNullOrWhiteSpace(status))
             {
+                // Cüzdandan (docs/wallet-redesign.md): ValidFrom != null = abonelik geçmişi var.
+                // 3 durumlu semantik korunur (date-valid = aktif; bakiye dikkate alınmaz — eski davranış).
                 query = status switch
                 {
                     "ActiveSubscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
+                        _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom <= now && w.ValidTo >= now)),
                     "Subscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.CustomerId == c.Id)
-                        && !_context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
-                    "Customer" => query.Where(c => !_context.Purchases.Any(p => p.CustomerId == c.Id)),
+                        _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom != null)
+                        && !_context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom <= now && w.ValidTo >= now)),
+                    "Customer" => query.Where(c => !_context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom != null)),
                     _ => query
                 };
             }
@@ -81,9 +83,9 @@ namespace Iroh.Services
                 LastName = c.LastName,
                 Phone = c.Phone,
                 Mail = c.Mail,
-                Status = _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)
+                Status = _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom <= now && w.ValidTo >= now)
                     ? "ActiveSubscriber"
-                    : _context.Purchases.Any(p => p.CustomerId == c.Id)
+                    : _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom != null)
                         ? "Subscriber"
                         : "Customer"
             }).ToListAsync();

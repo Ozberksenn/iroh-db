@@ -24,7 +24,7 @@ elif kind == "active":
         c = b.get("customer") or {}
         p = c.get("purchase") or {}
         pid = str(p["id"]) if p else "-"
-        um = str(round(float(p["usedMinutes"]))) if p else "-"
+        um = str(round(float(p["usedHours"]))) if p else "-"
         return f"{b['id']}|{c.get('status', '-')}|{pid}|{um}"
     join(row(b) for b in sorted(data, key=lambda x: x["id"]))
 
@@ -40,11 +40,11 @@ elif kind == "purchases":
     join(f"{p['id']}|{p['hours']:.2f}|{p['price']:.2f}|{p['customerId']}" for p in sorted(data, key=lambda x: x["id"]))
 
 elif kind == "purchasecustomer":
-    join(f"{p['id']}|{round(float(p['usedMinutes']))}|{len(p['payments'])}" for p in sorted(data, key=lambda x: x["id"]))
+    join(f"{p['id']}|{round(float(p['usedHours']))}|{len(p['payments'])}" for p in sorted(data, key=lambda x: x["id"]))
 
 elif kind == "dash-overview":
     o = data["overview"]
-    print(f"{o['totalBookings']}|{o['activeCurrently']}|{round(o['bookingRevenue'])}|{o['averageDurationMinutes']}|{o['subscriptionSessions']}|{o['purchaseCount']}|{round(o['purchaseRevenue'])}")
+    print(f"{o['totalChildren']}|{o['activeCurrently']}|{round(o['bookingRevenue'])}|{o['averageDurationMinutes']}|{o['subscriptionSessions']}|{o['purchaseCount']}|{round(o['purchaseRevenue'])}")
 
 elif kind == "dash-busy":
     join(f"{r['hour']}={r['count']}" for r in data["busyHoursChart"])

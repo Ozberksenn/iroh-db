@@ -19,6 +19,11 @@ public class AppDbContext : DbContext
     public DbSet<Package> Packages { get; set; }
 
     public DbSet<Child> Children { get; set; }
+
+    // Cüzdan + iki defter (docs/wallet-redesign.md). Purchase ekosistemini kademeli ikame eder.
+    public DbSet<Wallet> Wallets { get; set; }
+    public DbSet<TimeLedgerEntry> TimeLedger { get; set; }
+    public DbSet<CashLedgerEntry> CashLedger { get; set; }
     // NOT: UnifiedSearchResultDto / CustomerPurchaseResultDto / PurchaseBookingResultDto artık
     // DbSet/HasNoKey DEĞİL — LINQ projeksiyon hedefi olarak kullanılıyorlar (FromSql kaldırıldı).
 
@@ -34,6 +39,15 @@ public class AppDbContext : DbContext
         // BookingLogType enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
         modelBuilder.Entity<BookingLog>()
             .Property(bl => bl.Type)
+            .HasConversion<string>();
+
+        // Defter tipleri de DB'de string (character varying) tutulur — BookingStatus ile aynı kalıp.
+        modelBuilder.Entity<TimeLedgerEntry>()
+            .Property(e => e.Type)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<CashLedgerEntry>()
+            .Property(e => e.Type)
             .HasConversion<string>();
     }
 }

@@ -46,9 +46,12 @@ namespace Iroh.Services
                 avgDuration = await durationQuery.AverageAsync(b => (b.EndTime!.Value - b.StartTime!.Value).TotalMinutes);
             }
 
-            var subscriptionSessions = await _context.PurchaseBookings
-                .Where(pb => _context.Bookings.Any(b => b.Id == pb.BookingId && b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted)))
-                .Select(pb => pb.BookingId)
+            // Abonelik oturumu = cüzdandan SÜRE tüketmiş oturum (time_ledger Consumption).
+            // Eski PurchaseBookings okuması migration sonrası yazılmadığı için bu metrik latent kırıktı; cüzdan düzeltir.
+            var subscriptionSessions = await _context.TimeLedger
+                .Where(e => e.Type == TimeLedgerType.Consumption && e.BookingId != null
+                    && _context.Bookings.Any(b => b.Id == e.BookingId && b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted)))
+                .Select(e => e.BookingId)
                 .Distinct()
                 .CountAsync();
 
@@ -85,7 +88,7 @@ namespace Iroh.Services
                     CheckOut = b.EndTime,
                     Status = b.Status.ToString(),
                     Price = b.Price,
-                    IsSubscription = _context.PurchaseBookings.Any(pb => pb.BookingId == b.Id)
+                    IsSubscription = _context.TimeLedger.Any(e => e.BookingId == b.Id && e.Type == TimeLedgerType.Consumption)
                 })
                 .ToListAsync();
 

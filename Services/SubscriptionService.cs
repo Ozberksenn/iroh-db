@@ -33,61 +33,57 @@ namespace Iroh.Services
             public bool HasAny { get; init; }
         }
 
-        // parent_best_package + fn_get_used_hours: verilen ebeveynler için en iyi paketi ve abonelik gerçeklerini hesaplar.
+        // Cüzdandan okur (docs/wallet-redesign.md): müşteri başına tek bakiye + geçerlilik.
+        // ParentSubscription şekli korunur; BestPurchase, cüzdandan türetilen SENTETİK bir paket
+        // (eski "en iyi paket" tahmini kalktı). Tüketim/kredi tek doğruluk noktası = ledger.
         public async Task<Dictionary<int, ParentSubscription>> ComputeForParents(IReadOnlyCollection<int> parentIds)
         {
             var now = DateTime.UtcNow;
             var result = new Dictionary<int, ParentSubscription>();
             if (parentIds.Count == 0) return result;
 
-            var purchases = await _context.Purchases.AsNoTracking().Where(p => parentIds.Contains(p.CustomerId)).ToListAsync();
-            var purchaseIds = purchases.Select(p => p.Id).ToList();
-            var payments = await _context.PurchasePayments.AsNoTracking().Where(pp => purchaseIds.Contains(pp.PurchaseId)).ToListAsync();
-            var linked = await _context.PurchaseBookings
-                .Where(pb => purchaseIds.Contains(pb.PurchaseId))
-                .Join(_context.Bookings, pb => pb.BookingId, b => b.Id,
-                      (pb, b) => new { pb.PurchaseId, b.SubscriptionStartTime, b.SubscriptionEndTime })
-                .ToListAsync();
-
-            // fn_get_used_hours: Σ(subEnd - subStart) dakika cinsinden.
-            double UsedMinutesFor(int pid) => linked
-                .Where(x => x.PurchaseId == pid && x.SubscriptionStartTime.HasValue && x.SubscriptionEndTime.HasValue)
-                .Sum(x => (x.SubscriptionEndTime!.Value - x.SubscriptionStartTime!.Value).TotalMinutes);
+            var wallets = await _context.Wallets.AsNoTracking()
+                .Where(w => parentIds.Contains(w.CustomerId)).ToListAsync();
+            var walletIds = wallets.Select(w => w.Id).ToList();
+            var ledger = await _context.TimeLedger.AsNoTracking()
+                .Where(e => walletIds.Contains(e.WalletId)).ToListAsync();
 
             foreach (var pid in parentIds)
             {
-                var cust = purchases.Where(p => p.CustomerId == pid).ToList();
-                if (cust.Count == 0)
+                var wallet = wallets.FirstOrDefault(w => w.CustomerId == pid);
+                if (wallet == null)
                 {
                     result[pid] = new ParentSubscription();
                     continue;
                 }
 
-                var evals = cust.Select(p =>
-                {
-                    var payHours = payments.Where(pp => pp.PurchaseId == p.Id).Sum(pp => (double)pp.Hours);
-                    var used = UsedMinutesFor(p.Id);
-                    var totalMin = ((double)p.Hours + payHours) * 60.0;
-                    var isValid = p.StartDate.HasValue && p.EndDate.HasValue && p.StartDate.Value <= now && p.EndDate.Value >= now;
-                    return new { p, used, rem = totalMin - used, isValid };
-                }).ToList();
-
-                // DISTINCT ON (customerid) ORDER BY is_date_valid DESC, (rem>0) DESC, enddate DESC
-                var best = evals
-                    .OrderByDescending(e => e.isValid)
-                    .ThenByDescending(e => e.rem > 0)
-                    .ThenByDescending(e => e.p.EndDate ?? DateTime.MinValue)
-                    .First();
+                var rows = ledger.Where(e => e.WalletId == wallet.Id).ToList();
+                var used = -rows.Where(e => e.Type == Models.Enums.TimeLedgerType.Consumption).Sum(e => e.MinutesDelta); // pozitif dk
+                var hasCredit = rows.Any(e => e.Type == Models.Enums.TimeLedgerType.Credit);
+                var isValid = wallet.ValidFrom.HasValue && wallet.ValidTo.HasValue
+                              && wallet.ValidFrom.Value <= now && wallet.ValidTo.Value >= now;
+                var hasUpcoming = wallet.ValidFrom.HasValue && wallet.ValidFrom.Value > now;
+                // total - used == bakiye olacak şekilde (client hours*60 - usedHours hesabıyla uyumlu).
+                var totalAvail = wallet.TimeBalanceMinutes + used;
 
                 result[pid] = new ParentSubscription
                 {
-                    BestPurchase = best.p,
-                    BestRemainingMinutes = best.rem,
-                    BestIsDateValid = best.isValid,
-                    BestUsedMinutes = best.used,
-                    BestPayments = payments.Where(pp => pp.PurchaseId == best.p.Id).ToList(),
-                    HasUpcoming = cust.Any(p => p.StartDate.HasValue && p.StartDate.Value > now),
-                    HasAny = true
+                    BestPurchase = new Purchase
+                    {
+                        Id = wallet.Id,
+                        CustomerId = pid,
+                        Hours = totalAvail / 60m,
+                        Price = 0m,
+                        StartDate = wallet.ValidFrom,
+                        EndDate = wallet.ValidTo,
+                        CreatedAt = now
+                    },
+                    BestRemainingMinutes = wallet.TimeBalanceMinutes,
+                    BestIsDateValid = isValid,
+                    BestUsedMinutes = used,
+                    BestPayments = new(),
+                    HasUpcoming = hasUpcoming,
+                    HasAny = hasCredit
                 };
             }
 
@@ -126,12 +122,8 @@ namespace Iroh.Services
                     PurchaseInfoDto? pinfo = null;
                     if (parent != null && subs.TryGetValue(parent.Id, out var sub))
                     {
-                        // active-bookings kademesi (5'li): Subscriber dahil.
-                        tier = (sub.BestIsDateValid && sub.BestRemainingMinutes > 0) ? "ActiveSubscriber"
-                             : sub.BestIsDateValid ? "OverageSubscriber"
-                             : sub.HasUpcoming ? "UpcomingSubscriber"
-                             : sub.HasAny ? "Subscriber"
-                             : "Customer";
+                        // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — eski 5 dalın birebir karşılığı.
+                        tier = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
 
                         if (sub.BestPurchase != null)
                         {

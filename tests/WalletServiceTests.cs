@@ -1,0 +1,230 @@
+using Iroh.Models.DTOs.Wallet;
+using Iroh.Models.Entities;
+using Iroh.Models.Enums;
+using Iroh.Services;
+using Microsoft.EntityFrameworkCore;
+using Xunit;
+
+namespace Iroh.Tests
+{
+    // Cüzdan + iki defter çekirdeği (docs/wallet-redesign.md).
+    // EF InMemory; idempotency explicit kontrolle sağlanır (InMemory partial index'i yok sayar).
+    public class WalletServiceTests
+    {
+        private static AppDbContext NewContext(string db) =>
+            new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(db).Options);
+
+        // Deterministik fiyat: 1₺/dk → ücret == kapsanmayan dakika.
+        private sealed class FakePricing : IPricingService
+        {
+            public Task<decimal> PriceForMinutes(int minutes) => Task.FromResult((decimal)minutes);
+        }
+
+        private static WalletService NewService(AppDbContext c) => new(c, new FakePricing());
+
+        private static async Task SeedFamily(AppDbContext c, int customerId = 1, int childId = 2, int bookingId = 3,
+                                             DateTime? subStart = null, DateTime? subEnd = null)
+        {
+            c.Customers.Add(new Customer { Id = customerId, Name = "Parent" });
+            c.Children.Add(new Child { Id = childId, ParentId = customerId, Name = "Kid", IsDeleted = false });
+            c.Bookings.Add(new Booking
+            {
+                Id = bookingId, ChildId = childId, Status = BookingStatus.Active,
+                StartTime = subStart, SubscriptionStartTime = subStart, SubscriptionEndTime = subEnd
+            });
+            await c.SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task CreditTime_AddsMinutes_AndDerivesActiveSubscriber()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+            {
+                c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var wallet = await NewService(c).CreditTime(1, minutes: 120, money: 100m, packageId: null, userId: 9,
+                    validFrom: now.AddDays(-1), validTo: now.AddDays(1));
+
+                Assert.Equal(120, wallet.TimeBalanceMinutes);
+                Assert.Equal(0m, wallet.CashBalance);          // peşin satış net 0
+                Assert.Equal(0m, wallet.Debt);
+                Assert.Equal(nameof(SubscriptionStatus.ActiveSubscriber), wallet.Status);
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_FullyCovered_DebitsTime_NoCharge()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(30));   // 30 dk
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 180, 0m, null, null, now.AddDays(-1), now.AddDays(1));
+
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, userId: 9);
+                Assert.True(res.HasWallet);
+                Assert.Equal(30, res.CoveredMinutes);
+                Assert.Equal(0, res.UncoveredMinutes);
+                Assert.Equal(0m, res.Charged);
+                Assert.Equal(150, res.WalletAfter!.TimeBalanceMinutes);   // 180 - 30
+                Assert.Equal(0m, res.WalletAfter.Debt);
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_PartialCoverage_Splits_AndDebtsRemainder()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(50));   // 50 dk
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1)); // 20 dk
+
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);
+                Assert.Equal(20, res.CoveredMinutes);
+                Assert.Equal(30, res.UncoveredMinutes);
+                Assert.Equal(30m, res.Charged);                          // 1₺/dk
+                Assert.Equal(0, res.WalletAfter!.TimeBalanceMinutes);    // tümü tükendi
+                Assert.Equal(30m, res.WalletAfter.Debt);                 // borca yazıldı
+                Assert.Equal(-30m, res.WalletAfter.CashBalance);
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_PayNow_LeavesNoDebt()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(50));
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1));
+
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, userId: 9);
+                Assert.Equal(30m, res.Charged);
+                Assert.Equal(0m, res.WalletAfter!.Debt);     // Charge + Payment net 0
+                Assert.Equal(0m, res.WalletAfter.CashBalance);
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_ExpiredSubscription_ChargesFullDuration()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(40));
+            using (var c = NewContext(db))
+                // Bakiye var ama pencere geçmişte → geçerli değil.
+                await NewService(c).CreditTime(1, 100, 0m, null, null, now.AddDays(-10), now.AddDays(-5));
+
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);
+                Assert.Equal(0, res.CoveredMinutes);          // geçerli değil → abonelikten düşmez
+                Assert.Equal(40, res.UncoveredMinutes);
+                Assert.Equal(40m, res.WalletAfter!.Debt);
+                Assert.Equal(100, res.WalletAfter.TimeBalanceMinutes);  // dokunulmadı
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_IsIdempotent()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(30));
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 180, 0m, null, null, now.AddDays(-1), now.AddDays(1));
+
+            using (var c = NewContext(db))
+                await NewService(c).CloseBooking(3, SettlementMode.PayNow, 9);
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, 9);
+                Assert.True(res.AlreadyProcessed);
+                Assert.Equal(150, res.WalletAfter!.TimeBalanceMinutes);  // ikinci kez düşmedi
+            }
+        }
+
+        [Fact]
+        public async Task Settle_ReducesDebt()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(50));
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1));
+            using (var c = NewContext(db))
+                await NewService(c).CloseBooking(3, SettlementMode.Debt, 9);     // 30₺ borç
+
+            using (var c = NewContext(db))
+            {
+                var wallet = await NewService(c).Settle(1, amount: 20m, userId: 9);
+                Assert.Equal(10m, wallet.Debt);              // 30 - 20
+                Assert.Equal(-10m, wallet.CashBalance);
+            }
+        }
+
+        [Fact]
+        public async Task RecordConsumption_LegacyMirror_FullDebit_AndIdempotent()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+            {
+                c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
+                c.Purchases.Add(new Purchase { Id = 10, CustomerId = 1, Hours = 2m, Price = 1m, CreatedAt = now });
+                c.Bookings.Add(new Booking { Id = 3, Status = BookingStatus.Completed, SubscriptionStartTime = now, SubscriptionEndTime = now.AddMinutes(45) });
+                c.PurchaseBookings.Add(new PurchaseBooking { Id = 5, PurchaseId = 10, BookingId = 3 });
+                await c.SaveChangesAsync();
+            }
+
+            using (var c = NewContext(db))
+                await NewService(c).RecordConsumption(3, null);
+
+            using (var c = NewContext(db))
+            {
+                await NewService(c).RecordConsumption(3, null);   // idempotent
+                var w = await c.Wallets.FirstAsync(x => x.CustomerId == 1);
+                Assert.Equal(-45, w.TimeBalanceMinutes);          // tam süre düşüldü (borç değil, eksi bakiye)
+                Assert.Equal(1, await c.TimeLedger.CountAsync(e => e.BookingId == 3 && e.Type == TimeLedgerType.Consumption));
+            }
+        }
+
+        [Fact]
+        public async Task CloseBooking_GuestOrNoParent_HasNoWallet()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+            {
+                // Çocuğu olmayan oturum → parent yok.
+                c.Bookings.Add(new Booking { Id = 3, Status = BookingStatus.Active, StartTime = now, SubscriptionEndTime = now.AddMinutes(30) });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, 9);
+                Assert.False(res.HasWallet);
+                Assert.Equal(BookingStatus.Completed, (await c.Bookings.FindAsync(3))!.Status);
+            }
+        }
+    }
+}
