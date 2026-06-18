@@ -55,9 +55,11 @@ namespace Iroh.Services
                 .Distinct()
                 .CountAsync();
 
-            var purchaseRevenue = await _context.Purchases
-                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .SumAsync(p => (decimal)p.Price);
+            // Kredi satışı geliri = cash_ledger Charge (booking'siz). Charge = satış değeri (peşin/borç fark etmez);
+            // CloseBooking ücretleri booking_id taşır → hariç (onlar bookingRevenue'da). Σ(−amount_delta) = gelir.
+            var purchaseRevenue = -(await _context.CashLedger
+                .Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate)
+                .SumAsync(cl => (decimal?)cl.AmountDelta) ?? 0m);
 
             response.Overview = new DashboardOverviewDto
             {
@@ -68,7 +70,7 @@ namespace Iroh.Services
                 TotalRevenue = bookingRevenue + purchaseRevenue,
                 AverageDurationMinutes = (int)Math.Round(avgDuration),
                 CancelationRate = totalBookings > 0 ? (int)Math.Round((double)canceledCount / totalBookings * 100) : 0,
-                PurchaseCount = await _context.Purchases.CountAsync(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                PurchaseCount = await _context.CashLedger.CountAsync(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate),
                 SubscriptionSessions = subscriptionSessions
             };
 
@@ -101,11 +103,14 @@ namespace Iroh.Services
                     Name = c.Name + " " + (c.LastName ?? ""),
                     // proc: child silinmemiş + aralıkta TÜM bookings (sadece Completed değil!).
                     VisitCount = _context.Bookings.Count(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate),
-                    PurchaseCount = _context.Purchases.Count(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                    // Kredi satışı = cash_ledger Charge (booking'siz); cüzdan üzerinden müşteriye bağlanır.
+                    PurchaseCount = _context.CashLedger.Count(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate
+                                    && _context.Wallets.Any(w => w.Id == cl.WalletId && w.CustomerId == c.Id)),
                     BookingSpent = _context.Bookings.Where(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate)
                                     .Sum(b => (decimal?)b.Price ?? 0),
-                    PurchaseSpent = _context.Purchases.Where(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                                    .Sum(p => (decimal)p.Price),
+                    PurchaseSpent = -(_context.CashLedger.Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate
+                                    && _context.Wallets.Any(w => w.Id == cl.WalletId && w.CustomerId == c.Id))
+                                    .Sum(cl => (decimal?)cl.AmountDelta) ?? 0m),
                 })
                 .Where(tc => tc.VisitCount > 0 || tc.PurchaseCount > 0)
                 .OrderByDescending(tc => tc.BookingSpent + tc.PurchaseSpent)
@@ -131,10 +136,10 @@ namespace Iroh.Services
                 .Select(g => new { Date = g.Key, Total = g.Sum(b => (decimal?)b.Price ?? 0) })
                 .ToListAsync();
 
-            var purchaseRevs = await _context.Purchases
-                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .GroupBy(p => p.CreatedAt.Date)
-                .Select(g => new { Date = g.Key, Total = g.Sum(p => (decimal)p.Price) })
+            var purchaseRevs = await _context.CashLedger
+                .Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate)
+                .GroupBy(cl => cl.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Total = -g.Sum(cl => cl.AmountDelta) })
                 .ToListAsync();
 
             response.RevenueChart = dateList.Select(d => new RevenueChartDto
