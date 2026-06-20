@@ -22,9 +22,11 @@ namespace Iroh.Services
         private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 
         private readonly AppDbContext _context;
-        public CustomerService(AppDbContext context)
+        private readonly ISubscriptionService _subscriptionService;
+        public CustomerService(AppDbContext context, ISubscriptionService subscriptionService)
         {
             _context = context;
+            _subscriptionService = subscriptionService;
         }
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
@@ -83,12 +85,20 @@ namespace Iroh.Services
                 LastName = c.LastName,
                 Phone = c.Phone,
                 Mail = c.Mail,
-                Status = _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom <= now && w.ValidTo >= now)
-                    ? "ActiveSubscriber"
-                    : _context.Wallets.Any(w => w.CustomerId == c.Id && w.ValidFrom != null)
-                        ? "Subscriber"
-                        : "Customer"
+                Status = "Customer"   // gerçek statü aşağıda tek Derive ile
             }).ToListAsync();
+
+            // Statü tek doğruluk noktasından (WalletService.Derive — active-bookings/search-unified ile aynı).
+            // Eski inline tarih-bazlı türetim TimeBalanceMinutes'i yoksayıyordu → OverageSubscriber'ı hiç üretemiyordu.
+            var subs = await _subscriptionService.ComputeForParents(items.Select(i => i.Id).ToList());
+            foreach (var item in items)
+            {
+                if (subs.TryGetValue(item.Id, out var sub) && sub != null)
+                {
+                    item.Status = WalletService.Derive(
+                        (int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
+                }
+            }
 
             return new PagedResult<CustomerListItemDto>
             {
