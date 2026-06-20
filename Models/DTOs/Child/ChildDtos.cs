@@ -19,7 +19,7 @@ namespace Iroh.Models.DTOs.Child
         public int Id { get; set; }
         public int ParentId { get; set; }
         public required string Name { get; set; }
-        public DateTime BirthDate { get; set; }
+        public DateTime? BirthDate { get; set; }
 
         public static ChildDto From(Iroh.Models.Entities.Child c) => new()
         {

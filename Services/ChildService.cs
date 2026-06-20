@@ -115,10 +115,10 @@ namespace Iroh.Services
             {
                 ParentId = parentId,
                 Name = name,
-                BirthDate = birthDate ?? DateTime.MinValue,
+                BirthDate = birthDate,
                 IsDeleted = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             _context.Children.Add(child);
@@ -147,7 +147,7 @@ namespace Iroh.Services
             {
                 child.BirthDate = birthDate.Value;
             }
-            child.UpdatedAt = DateTime.Now;
+            child.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
         }
@@ -167,7 +167,7 @@ namespace Iroh.Services
             }
 
             child.IsDeleted = true;
-            child.UpdatedAt = DateTime.Now;
+            child.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
 

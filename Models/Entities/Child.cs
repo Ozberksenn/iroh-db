@@ -17,7 +17,7 @@ namespace Iroh.Models.Entities
         public Customer? Parent { get; set; }
 
         [Column("birth_date")]
-        public DateTime BirthDate { get; set; }
+        public DateTime? BirthDate { get; set; }   // DB kolonu nullable; non-nullable iken NULL satır InvalidCastException atıyordu (aktif-seans 500'ü)
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
