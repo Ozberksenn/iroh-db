@@ -90,6 +90,9 @@ builder.Services.AddControllers(options =>
         // Client ID/sayı alanlarını JSON string olarak gönderiyor (örn. tableId:"5", userId:"12");
         // sayısal alanların string'ten de okunabilmesine izin ver, aksi halde model-binding 400 atar.
         options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+        // Enum'lar string olarak okunup yazılsın (client status:"Active", settlement:"Debt" gönderir;
+        // DTO'lar da enum'u ToString()'ler). Converter yoksa enum girişi sayı beklenir → model-binding 400.
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
