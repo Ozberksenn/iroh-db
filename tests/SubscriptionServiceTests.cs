@@ -7,7 +7,7 @@ using Xunit;
 namespace Iroh.Tests
 {
     // Billing okuma çekirdeği (SubscriptionService) — ARTIK cüzdan/ledger'dan okur (docs/wallet-redesign.md).
-    // ParentSubscription şekli korunur; BestPurchase cüzdandan türetilen sentetik pakettir.
+    // ParentSubscription cüzdandan okur; HasWallet = cüzdan var mı, BestRemainingMinutes = finalize bakiye (RC1).
     public class SubscriptionServiceTests
     {
         private static AppDbContext NewContext(string db) =>
@@ -37,8 +37,7 @@ namespace Iroh.Tests
                 Assert.True(sub.BestIsDateValid);
                 Assert.Equal(30d, sub.BestUsedMinutes, 5);
                 Assert.Equal(150d, sub.BestRemainingMinutes, 5);
-                Assert.Equal(100, sub.BestPurchase!.Id);
-                Assert.Equal(3m, sub.BestPurchase.Hours);        // (150+30)/60 = 3 saat (sentetik)
+                Assert.True(sub.HasWallet);
             }
         }
 
@@ -79,7 +78,7 @@ namespace Iroh.Tests
             {
                 var sub = (await new SubscriptionService(c).ComputeForParents(new[] { 7 }))[7];
                 Assert.False(sub.HasAny);
-                Assert.Null(sub.BestPurchase);
+                Assert.False(sub.HasWallet);
             }
         }
 

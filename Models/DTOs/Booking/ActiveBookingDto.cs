@@ -30,28 +30,9 @@ namespace Iroh.Models.DTOs.Booking
         public string? ParentLastName { get; set; }
         public string? Phone { get; set; }
         public string Status { get; set; } = "Customer";  // abone kademesi
-        public PurchaseInfoDto? Purchase { get; set; }     // en iyi (best) paket
-    }
-
-    public class PurchaseInfoDto
-    {
-        public int Id { get; set; }
-        public decimal Hours { get; set; }
-        public decimal Price { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public int CustomerId { get; set; }
-        // Değer DAKİKA cinsinden; client bu alanı tarihsel olarak "usedHours" adıyla (dakika değeriyle) okuyor.
-        public double UsedHours { get; set; }
-        public List<PaymentDto> Payments { get; set; } = new();
-    }
-
-    public class PaymentDto
-    {
-        public int Id { get; set; }
-        public int PurchaseId { get; set; }
-        public decimal Hours { get; set; }
-        public decimal Price { get; set; }
+        // Cüzdanın finalize bakiyesi (dakika); canlı oturum HARİÇ. null = cüzdan yok.
+        // Client canlı geçen süreyi kendisi çıkarır (utils.ts). Eski sentetik PurchaseInfoDto kaldırıldı (RC1).
+        public int? RemainingMinutes { get; set; }
     }
 
     public class BookingLogDto

@@ -24,7 +24,7 @@ namespace Iroh.Services
         // (active-bookings 5 kademe, search-unified 4 kademe — farklı, o yüzden burada ham bırakılıyor).
         public sealed class ParentSubscription
         {
-            public PurchaseInfoDto? BestPurchase { get; init; }   // cüzdandan türetilen sentetik paket (entity değil)
+            public bool HasWallet { get; init; }                  // cüzdan satırı var mı (abone-branch gate'i; RC1: sentetik BestPurchase yerine)
             public double BestRemainingMinutes { get; init; }
             public bool BestIsDateValid { get; init; }
             public double BestUsedMinutes { get; init; }
@@ -62,22 +62,9 @@ namespace Iroh.Services
                 var isValid = wallet.ValidFrom.HasValue && wallet.ValidTo.HasValue
                               && wallet.ValidFrom.Value <= now && wallet.ValidTo.Value >= now;
                 var hasUpcoming = wallet.ValidFrom.HasValue && wallet.ValidFrom.Value > now;
-                // total - used == bakiye olacak şekilde (client hours*60 - usedHours hesabıyla uyumlu).
-                var totalAvail = wallet.TimeBalanceMinutes + used;
-
                 result[pid] = new ParentSubscription
                 {
-                    BestPurchase = new PurchaseInfoDto
-                    {
-                        Id = wallet.Id,
-                        CustomerId = pid,
-                        Hours = totalAvail / 60m,
-                        Price = 0m,
-                        StartDate = wallet.ValidFrom,
-                        EndDate = wallet.ValidTo,
-                        UsedHours = used,
-                        Payments = new()
-                    },
+                    HasWallet = true,
                     BestRemainingMinutes = wallet.TimeBalanceMinutes,
                     BestIsDateValid = isValid,
                     BestUsedMinutes = used,
@@ -118,13 +105,14 @@ namespace Iroh.Services
                 {
                     var parent = b.Child.Parent;
                     var tier = "Customer";
-                    PurchaseInfoDto? pinfo = null;
+                    int? remainingMinutes = null;
                     if (parent != null && subs.TryGetValue(parent.Id, out var sub))
                     {
                         // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — eski 5 dalın birebir karşılığı.
                         tier = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
 
-                        pinfo = sub.BestPurchase;   // cüzdandan türetilen sentetik paket (ComputeForParents)
+                        // Finalize bakiye (canlı oturum hariç); client canlı elapsed'i çıkarır. null = cüzdan yok.
+                        remainingMinutes = sub.HasWallet ? (int)sub.BestRemainingMinutes : (int?)null;
                     }
                     customer = new ActiveBookingCustomerDto
                     {
@@ -136,7 +124,7 @@ namespace Iroh.Services
                         ParentLastName = parent?.LastName,
                         Phone = parent?.Phone,
                         Status = tier,
-                        Purchase = pinfo
+                        RemainingMinutes = remainingMinutes
                     };
                 }
 
