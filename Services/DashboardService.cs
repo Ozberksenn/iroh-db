@@ -124,23 +124,33 @@ namespace Iroh.Services
             }
             response.TopCustomers = topCustomers;
 
-            // 4. Revenue Chart (fn_get_dashboard_revenue_chart)
+            // 4. Revenue Chart — kolonlar UTC; gün/saat bucket'ı Europe/Istanbul iş gününe göre.
+            // Çevrim bellek içinde yapılır (DST-güvenli); dashboard aralığı küçük olduğundan maliyet düşük.
+            var istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+            DateTime ToIst(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), istanbul);
+
             var dateList = new List<DateTime>();
-            for (var dt = startDate.Date; dt <= endDate.Date; dt = dt.AddDays(1)) {
+            for (var dt = ToIst(startDate).Date; dt <= ToIst(endDate).Date; dt = dt.AddDays(1)) {
                 dateList.Add(dt);
             }
 
-            var bookingRevs = await _context.Bookings
-                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
-                .GroupBy(b => b.StartTime!.Value.Date)
+            var bookingRevRows = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && b.StartTime != null)
+                .Select(b => new { Start = b.StartTime!.Value, b.Price })
+                .ToListAsync();
+            var bookingRevs = bookingRevRows
+                .GroupBy(b => ToIst(b.Start).Date)
                 .Select(g => new { Date = g.Key, Total = g.Sum(b => (decimal?)b.Price ?? 0) })
-                .ToListAsync();
+                .ToList();
 
-            var purchaseRevs = await _context.CashLedger
+            var purchaseRevRows = await _context.CashLedger
                 .Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate)
-                .GroupBy(cl => cl.CreatedAt.Date)
-                .Select(g => new { Date = g.Key, Total = -g.Sum(cl => cl.AmountDelta) })
+                .Select(cl => new { cl.CreatedAt, cl.AmountDelta })
                 .ToListAsync();
+            var purchaseRevs = purchaseRevRows
+                .GroupBy(cl => ToIst(cl.CreatedAt).Date)
+                .Select(g => new { Date = g.Key, Total = -g.Sum(cl => cl.AmountDelta) })
+                .ToList();
 
             response.RevenueChart = dateList.Select(d => new RevenueChartDto
             {
@@ -149,16 +159,16 @@ namespace Iroh.Services
                 PurchaseRevenue = purchaseRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0
             }).ToList();
 
-            // 5. Busy Hours (fn_get_dashboard_busy_hours) — saat bucket'ı SQL'de (Istanbul TZ), format/sıra bellekte.
-            var busyRaw = await _context.Bookings
-                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
-                .GroupBy(b => b.StartTime!.Value.Hour)
-                .Select(g => new { Hour = g.Key, Count = g.Count() })
+            // 5. Busy Hours — saat bucket'ı Europe/Istanbul'a göre (kolonlar UTC).
+            var busyStarts = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && b.StartTime != null)
+                .Select(b => b.StartTime!.Value)
                 .ToListAsync();
 
-            response.BusyHoursChart = busyRaw
-                .OrderBy(x => x.Hour)
-                .Select(x => new BusyHourDto { Hour = x.Hour.ToString("D2") + ":00", Count = x.Count })
+            response.BusyHoursChart = busyStarts
+                .GroupBy(s => ToIst(s).Hour)
+                .OrderBy(g => g.Key)
+                .Select(g => new BusyHourDto { Hour = g.Key.ToString("D2") + ":00", Count = g.Count() })
                 .ToList();
 
             return response;

@@ -6,7 +6,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+// TIMEZONE STANDARDI: tüm zaman damgaları UTC instant olarak saklanır/işlenir.
+// timestamptz <-> DateTime(Kind=Utc) eşlenir; DB'ye yalnızca Kind=Utc DateTime yazılabilir
+// (Local/Unspecified yazımı Npgsql tarafından REDDEDİLİR -> kasıtlı koruma, sessiz kaymayı önler).
+// İş günü / görüntüleme için UTC -> Europe/Istanbul çevrimi açıkça yapılır (DashboardController + client).
+// Legacy davranış KAPALI tutulur; bunu true yapmak "duvar-saatini yerel say" hatasını geri getirir.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -156,6 +156,8 @@ namespace Iroh.Services
         {
             if (minutes <= 0)
                 throw new BusinessRuleException("Eklenecek süre pozitif olmalıdır.");
+            if (money < 0m)
+                throw new BusinessRuleException("Ücret negatif olamaz.");
 
             return await InTransaction(async () =>
             {

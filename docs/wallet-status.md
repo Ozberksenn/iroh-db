@@ -29,10 +29,16 @@ Eski `Purchase`/`PurchasePayment`/`PurchaseBooking` sistemini **müşteri başı
 
 ---
 
-## KALAN ⏳
+## KALAN ⏳ (hepsi opsiyonel — çekirdek göç bitti; KRİTİKLİK sırasıyla)
 
-- **Opsiyonel polish:** `active-sessions/utils.ts` + `components/customer-child-select.tsx` içindeki `*60`//`60` sadeleştirmesi. Sentetik `purchase` sözleşmesiyle çalışıyor; sadece temizlik.
-- **Görsel doğrulama:** Cüzdan sayfası tarayıcıda açılıp gözle kontrol edilmedi (login gerekiyordu). `cd server && dotnet run` + `cd client && npm run dev` → müşteri listesinde 🧾 butonu.
+1. 🔴 **KRİTİK — Tarayıcı görsel doğrulaması:** Cüzdan UI'ı **HİÇ tarayıcıda çalıştırılmadı** (tüm doğrulama API/build/test seviyesinde). Build-geçen React app runtime'da patlayabilir → tek gerçek doğrulama boşluğu. Kontrol et: Cüzdan sayfası render + saat/borç ledger'ları · **Kredi Ekle / Borç Öde** modalları (mutation→invalidation→ekran güncelleme) · oturum kapatmada **Borca Yaz / Şimdi Tahsil Et** + ücret özeti · aktif oturum kalan-süre gösterimi (madde 2'nin matematiğini kullanır). Çalıştır: `cd server && dotnet run` + `cd client && npm run dev` → müşteri listesi 🧾 butonu. (Playwright ile yapılabilir.)
+2. 🟡 **ORTA — `*60`//`60` birim kırılganlığı:** `active-sessions/utils.ts` + `components/customer-child-select.tsx`. Şu an ÇALIŞIYOR (sentetik sözleşme: `hours`=saat, `usedHours`=dakika; client çarpımı oturuyor) ama redesign'ın bitirmeyi hedeflediği "birim kaosu"nun client'taki son kalıntısı — "kazara doğru", dokununca sessizce bozulabilir. Robustluk için, acil değil.
+3. 🟢 **DÜŞÜK — vestigial `BookingUpdateDto.PurchaseId`:** Client göndermiyor + BookingService kullanmıyor (4c). Zararsız ölü alan; trivial temizlik.
+4. ⚪ **YAPMA (öneri) — `_archived_*` DROP:** Geri alınamaz, kazanç yok. Arşivi güvenlik ağı olarak tut.
+5. 🟡 **Push:** İş yalnız bu makinede (`feature/wallet-redesign`, commit'li ama **push'suz**). Dayanıklılık/PR için — workflow kararı.
+
+## 🔭 En kritik gelecek adım (kod değil — DEPLOYMENT)
+**PRODUCTION ROLLOUT:** SQL script'lerini prod veride **bu SIRAYLA + her adımda reconciliation ile** çalıştır: `wallet-migration.sql` → `wallet-cash-backfill.sql` → `wallet-archive-legacy.sql`. Tüm doğrulama dev DB'de (3 purchase) yapıldı; prod gerçek veride ayrı dikkat ister (backfill çift-sayım guard'ı: cash_ledger boş olmalı).
 
 ## Bilinen mevcut sorun (tasarım dışı, dikkat)
 Bazı `children.birth_date` DB'de NULL ama `Child.BirthDate` non-nullable `DateTime` → `Child` entity'sini tam yüklemek `InvalidCastException` atıyor. `CloseBooking` bunu `ParentId` projeksiyonuyla aşıyor. Kalıcı çözüm: entity'de `DateTime?` yapmak veya NULL'ları doldurmak. (`GetActiveBookings` `Include(Child)` kullanıyor — orada da patlayabilir, kontrol et.)
@@ -45,9 +51,11 @@ cd server && dotnet build iroh-be.sln && dotnet test tests/Iroh.Tests.csproj
 ./scripts/wallet-close-smoke.sh    # kapanış→borç canlı smoke (geri alır)
 # client
 cd client && npm run build && npm run lint
-# DB migration (yeni ortamda)
-psql "<conn>" -f server/scripts/wallet-migration.sql   # conn: appsettings.Development.json
+# DB migration (yeni ortam / prod) — SIRAYLA, her adımda reconciliation; conn: appsettings.Development.json
+psql "<conn>" -f server/scripts/wallet-migration.sql       # Stage 0: 3 tablo + time_ledger backfill
+psql "<conn>" -f server/scripts/wallet-cash-backfill.sql   # 4b: cash_ledger tarihsel para (cash_ledger boşken)
+psql "<conn>" -f server/scripts/wallet-archive-legacy.sql  # 4d: eski 3 tabloyu _archived_* olarak arşivle
 ```
 
 ## Sıradaki ilk adım (devam edince)
-**Stage 4 TAMAMEN BİTTİ** (4a/4b-zaman/4c/4b-para/4d) — eski Purchase ekosistemi tamamen emekliye ayrıldı: client + server + dashboard yalnız cüzdan/ledger'dan okuyor, eski 3 tablo `_archived_*` olarak arşivlendi (veri korundu, geri alınabilir). KALAN yalnızca **opsiyonel**: (1) `active-sessions/utils.ts` + `customer-child-select.tsx` `*60`//`60` sadeleştirmesi, (2) vestigial `BookingUpdateDto.PurchaseId` alanını temizle, (3) tarayıcıda görsel doğrulama, (4) istenirse `_archived_*` tabloları ileride tamamen DROP et.
+**Stage 4 TAMAMEN BİTTİ** (4a/4b-zaman/4c/4b-para/4d) — eski Purchase ekosistemi tamamen emekliye ayrıldı: client + server + dashboard yalnız cüzdan/ledger'dan okuyor, eski 3 tablo `_archived_*` olarak arşivlendi (veri korundu, geri alınabilir). Çekirdek iş bitti; kalan her şey opsiyonel ve yukarıdaki **KALAN ⏳** bölümünde kritiklik sırasıyla listeli. **Sıradaki en değerli adım: madde 1 — tarayıcı görsel doğrulaması** (UI hiç çalıştırılmadı, tek gerçek doğrulama boşluğu).
