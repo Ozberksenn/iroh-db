@@ -10,8 +10,8 @@ namespace Iroh.Models.DTOs.Wallet
         public int CustomerId { get; set; }
 
         public int TimeBalanceMinutes { get; set; }     // finalize abonelik bakiyesi (canlı oturum hariç)
-        public decimal CashBalance { get; set; }         // negatif = borç
-        public decimal Debt { get; set; }                // max(0, -CashBalance) — kolaylık alanı
+        public int TimeDebtMinutes { get; set; }         // tek borç türü: kapsanmayan (aşım) sürenin borcu (≥0)
+        public decimal CashBalance { get; set; }         // nakit DEFTERİ toplamı (tahsil/ciro izi) — borç değil
 
         public DateTime? ValidFrom { get; set; }
         public DateTime? ValidTo { get; set; }
@@ -31,8 +31,9 @@ namespace Iroh.Models.DTOs.Wallet
         public bool AlreadyProcessed { get; set; }       // idempotent tekrar
         public int CoveredMinutes { get; set; }          // abonelikten düşen
         public int UncoveredMinutes { get; set; }        // ücrete/borca giden
-        public decimal Charged { get; set; }             // kapsanmayan süre ücreti
-        public string? Settlement { get; set; }          // PayNow | Debt (ücret varsa)
+        public decimal Charged { get; set; }             // PayNow'da tahsil edilen ücret (Debt'te 0)
+        public int DebtedMinutes { get; set; }           // Debt'te süre-borcuna yazılan dakika (PayNow'da 0)
+        public string? Settlement { get; set; }          // PayNow | Debt (ücret/borç varsa)
         public WalletDto? WalletAfter { get; set; }
     }
 

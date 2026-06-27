@@ -63,11 +63,12 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(wallet, "Kredi eklendi"));
         }
 
-        [HttpPost("settle")]
-        public async Task<IActionResult> Settle(WalletSettleDto dto)
+        // Borç ödeme: tüm (süre) borç kapanır; tutar operatör girdisi.
+        [HttpPost("settle-time-debt")]
+        public async Task<IActionResult> SettleTimeDebt(WalletSettleDto dto)
         {
-            var wallet = await _wallet.Settle(dto.CustomerId, dto.Amount, CurrentUserId());
-            return Ok(ApiResponse.Ok(wallet, "Tahsilat alındı"));
+            var wallet = await _wallet.SettleTimeDebt(dto.CustomerId, dto.Amount, CurrentUserId());
+            return Ok(ApiResponse.Ok(wallet, "Borç tahsilatı alındı"));
         }
 
         [HttpPost("adjust")]

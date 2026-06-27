@@ -15,7 +15,7 @@ namespace Iroh.Models.DTOs.Wallet
         public DateTime? ValidTo { get; set; }
     }
 
-    // Borç ödeme (serbest tutar, FIFO kapanır).
+    // Borç ödeme: tüm (süre) borç tek seferde kapanır; Amount = operatörün girdiği para karşılığı.
     public class WalletSettleDto
     {
         [Required]
@@ -45,5 +45,6 @@ namespace Iroh.Models.DTOs.Wallet
         public string? Note { get; set; }
         public int? TableId { get; set; }
         public int? ChildId { get; set; }
+        public decimal? ChargeAmount { get; set; }          // PayNow'da operatör tahsilat tutarı; verilmezse Company oranı
     }
 }

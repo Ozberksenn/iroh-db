@@ -6,7 +6,10 @@ namespace Iroh.Models.Enums
         Credit,       // abonelik / topup → + dakika
         Consumption,  // oturum tüketimi → − dakika
         Correction,   // denetlenebilir düzeltme (eski "kilit" yerine)
-        Refund        // iade → + dakika
+        Refund,       // iade → + dakika
+        // --- Süre-borcu defteri (time_debt_minutes'i besler; balance'a karışmaz) ---
+        DebtCharge,   // kapsanmayan (aşım) süre borca yazıldı → + borç dakika
+        DebtSettle    // borç netleme (kredi) / para ödemesi ile kapanış → − borç dakika
     }
 
     // Para/borç defteri hareket tipleri. amount_delta: Charge −, Payment +.

@@ -23,12 +23,14 @@ namespace Iroh.Services
                                    DateTime? validFrom = null, DateTime? validTo = null);
 
         // Oturum kapanışı: kapsama hesabı (BÖL) → zaman tüketimi + kapsanmayan süre için ücret/borç.
+        // Debt → aşım SÜRE borcu (DebtCharge); PayNow → chargeAmount (operatör tutarı, verilmezse Company oranı).
         // Tamamlama tek uç: booking alanlarını (sub-time/endTime/not/masa/çocuk) da finalize eder.
         Task<CloseBookingResultDto> CloseBooking(int bookingId, SettlementMode settlement, int? userId,
-            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null);
+            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
+            decimal? chargeAmount = null);
 
-        // Borç ödeme (serbest tutar). + Payment.
-        Task<WalletDto> Settle(int customerId, decimal amount, int? userId);
+        // Borç ödeme: tüm (süre) borcu kapanır (kısmi yok); operatör para karşılığını girer.
+        Task<WalletDto> SettleTimeDebt(int customerId, decimal amount, int? userId);
 
         Task<WalletDto> AdjustTime(int customerId, int minutesDelta, string reason, int? userId);
         Task<WalletDto> AdjustCash(int customerId, decimal amountDelta, string reason, int? userId);
@@ -72,10 +74,22 @@ namespace Iroh.Services
 
         // Materyalize bakiyeleri (TimeBalanceMinutes / CashBalance) defterlerden YENİDEN hesaplar — ledger otorite.
         // Elle += yerine çağrılır; çağrıdan önce ilgili defter satırları SaveChanges'lenmiş olmalı.
+        // Süre-borcu (DebtCharge/DebtSettle) defteri balance'a karışmaz; ayrı toplanır.
+        private static readonly TimeLedgerType[] BalanceTypes =
+            { TimeLedgerType.Credit, TimeLedgerType.Consumption, TimeLedgerType.Correction, TimeLedgerType.Refund };
+        private static readonly TimeLedgerType[] DebtTypes =
+            { TimeLedgerType.DebtCharge, TimeLedgerType.DebtSettle };
+
         private async Task RecomputeBalances(Wallet wallet)
         {
+            // Kullanılabilir bakiye: yalnızca kredi/tüketim/düzeltme/iade.
             wallet.TimeBalanceMinutes = await _context.TimeLedger
-                .Where(e => e.WalletId == wallet.Id).SumAsync(e => (int?)e.MinutesDelta) ?? 0;
+                .Where(e => e.WalletId == wallet.Id && BalanceTypes.Contains(e.Type))
+                .SumAsync(e => (int?)e.MinutesDelta) ?? 0;
+            // Süre-borcu: DebtCharge(+) − DebtSettle(−) → kalan borçlu dakika (≥0).
+            wallet.TimeDebtMinutes = await _context.TimeLedger
+                .Where(e => e.WalletId == wallet.Id && DebtTypes.Contains(e.Type))
+                .SumAsync(e => (int?)e.MinutesDelta) ?? 0;
             wallet.CashBalance = await _context.CashLedger
                 .Where(e => e.WalletId == wallet.Id).SumAsync(e => (decimal?)e.AmountDelta) ?? 0m;
             wallet.UpdatedAt = DateTime.UtcNow;
@@ -141,8 +155,8 @@ namespace Iroh.Services
                 Id = wallet.Id,
                 CustomerId = wallet.CustomerId,
                 TimeBalanceMinutes = wallet.TimeBalanceMinutes,
+                TimeDebtMinutes = wallet.TimeDebtMinutes,
                 CashBalance = wallet.CashBalance,
-                Debt = Math.Max(0m, -wallet.CashBalance),
                 ValidFrom = wallet.ValidFrom,
                 ValidTo = wallet.ValidTo,
                 Status = status.ToString(),
@@ -163,15 +177,36 @@ namespace Iroh.Services
             {
                 var wallet = await GetOrCreateWallet(customerId, forUpdate: true);
 
-                _context.TimeLedger.Add(new TimeLedgerEntry
+                // Borç netleme (kullanıcı kararı): borçluysa yeni kredinin dakikaları ÖNCE süre-borcunu kapatır,
+                // kalanı kullanılabilir bakiyeye yazılır. (Örn 5sa borç + 10sa kredi → 5sa borç kapanır, 5sa kalır.)
+                var toDebt = Math.Min(minutes, wallet.TimeDebtMinutes);
+                if (toDebt > 0)
                 {
-                    WalletId = wallet.Id,
-                    Type = TimeLedgerType.Credit,
-                    MinutesDelta = minutes,
-                    PackageId = packageId,
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    _context.TimeLedger.Add(new TimeLedgerEntry
+                    {
+                        WalletId = wallet.Id,
+                        Type = TimeLedgerType.DebtSettle,
+                        MinutesDelta = -toDebt,
+                        PackageId = packageId,
+                        UserId = userId,
+                        Reason = "Kredi ile süre borcu netleme",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                var toBalance = minutes - toDebt;
+                if (toBalance > 0)
+                {
+                    _context.TimeLedger.Add(new TimeLedgerEntry
+                    {
+                        WalletId = wallet.Id,
+                        Type = TimeLedgerType.Credit,
+                        MinutesDelta = toBalance,
+                        PackageId = packageId,
+                        UserId = userId,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
 
                 // Geçerlilik penceresi verildiyse güncelle (tek pencere modeli; bakiyeden bağımsız alan).
                 if (validFrom.HasValue) wallet.ValidFrom = validFrom;
@@ -199,7 +234,8 @@ namespace Iroh.Services
         }
 
         public async Task<CloseBookingResultDto> CloseBooking(int bookingId, SettlementMode settlement, int? userId,
-            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null)
+            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
+            decimal? chargeAmount = null)
         {
             return await InTransaction(async () =>
             {
@@ -250,7 +286,8 @@ namespace Iroh.Services
                 // Status kontrolü kapsanmayan/expired kapanışları da korur — onlarda Consumption satırı olmaz,
                 // yoksa tekrar kapatma çift ücret yazardı.
                 var alreadyProcessed = booking.Status == BookingStatus.Completed
-                    || await _context.TimeLedger.AnyAsync(e => e.BookingId == bookingId && e.Type == TimeLedgerType.Consumption);
+                    || await _context.TimeLedger.AnyAsync(e => e.BookingId == bookingId
+                        && (e.Type == TimeLedgerType.Consumption || e.Type == TimeLedgerType.DebtCharge));
                 if (alreadyProcessed)
                 {
                     booking.Status = BookingStatus.Completed;
@@ -278,18 +315,31 @@ namespace Iroh.Services
 
                 if (uncovered > 0)
                 {
-                    var price = await _pricing.PriceForMinutes(uncovered);
-                    result.Charged = price;
                     result.Settlement = settlement.ToString();
 
-                    _context.CashLedger.Add(new CashLedgerEntry
+                    if (settlement == SettlementMode.Debt)
                     {
-                        WalletId = wallet.Id, Type = CashLedgerType.Charge, AmountDelta = -price,
-                        BookingId = bookingId, Reason = "Kapsanmayan oturum süresi", UserId = userId, CreatedAt = now
-                    });
+                        // Borca yaz: aşım SÜRE olarak borçlanılır (para değil). Para, ödeme anında operatör tarafından girilir.
+                        _context.TimeLedger.Add(new TimeLedgerEntry
+                        {
+                            WalletId = wallet.Id, Type = TimeLedgerType.DebtCharge, MinutesDelta = uncovered,
+                            BookingId = bookingId, Reason = "Kapsanmayan süre borcu", UserId = userId, CreatedAt = now
+                        });
+                        result.DebtedMinutes = uncovered;
+                    }
+                    else
+                    {
+                        // Peşin tahsil: ücret operatör girdisi (chargeAmount); verilmezse Company oranı (öneri/varsayılan).
+                        var price = chargeAmount ?? await _pricing.PriceForMinutes(uncovered);
+                        if (price < 0m) throw new BusinessRuleException("Tahsilat tutarı negatif olamaz.");
+                        result.Charged = price;
 
-                    if (settlement == SettlementMode.PayNow)
-                    {
+                        // Peşin satış kalıbı: Charge + Payment net 0 (borç yok, para izi kalır).
+                        _context.CashLedger.Add(new CashLedgerEntry
+                        {
+                            WalletId = wallet.Id, Type = CashLedgerType.Charge, AmountDelta = -price,
+                            BookingId = bookingId, Reason = "Kapsanmayan oturum süresi", UserId = userId, CreatedAt = now
+                        });
                         _context.CashLedger.Add(new CashLedgerEntry
                         {
                             WalletId = wallet.Id, Type = CashLedgerType.Payment, AmountDelta = price,
@@ -318,19 +368,39 @@ namespace Iroh.Services
             });
         }
 
-        public async Task<WalletDto> Settle(int customerId, decimal amount, int? userId)
+        // Borç ödeme: tüm süre-borcu tek seferde kapanır (kısmi yok). Operatör para karşılığını girer.
+        // Süre-borcu (DebtSettle) sıfırlanır + para izi Charge+Payment net 0 olarak kaydedilir.
+        public async Task<WalletDto> SettleTimeDebt(int customerId, decimal amount, int? userId)
         {
-            if (amount <= 0m)
-                throw new BusinessRuleException("Ödeme tutarı pozitif olmalıdır.");
+            if (amount < 0m)
+                throw new BusinessRuleException("Tahsilat tutarı negatif olamaz.");
 
             return await InTransaction(async () =>
             {
                 var wallet = await GetOrCreateWallet(customerId, forUpdate: true);
-                _context.CashLedger.Add(new CashLedgerEntry
+                if (wallet.TimeDebtMinutes <= 0)
+                    throw new BusinessRuleException("Bu müşterinin süre borcu bulunmuyor.");
+
+                _context.TimeLedger.Add(new TimeLedgerEntry
                 {
-                    WalletId = wallet.Id, Type = CashLedgerType.Payment, AmountDelta = amount,
-                    Reason = "Borç ödeme", UserId = userId, CreatedAt = DateTime.UtcNow
+                    WalletId = wallet.Id, Type = TimeLedgerType.DebtSettle, MinutesDelta = -wallet.TimeDebtMinutes,
+                    Reason = "Süre borcu ödendi", UserId = userId, CreatedAt = DateTime.UtcNow
                 });
+
+                if (amount > 0m)
+                {
+                    _context.CashLedger.Add(new CashLedgerEntry
+                    {
+                        WalletId = wallet.Id, Type = CashLedgerType.Charge, AmountDelta = -amount,
+                        Reason = "Süre borcu tahsilatı", UserId = userId, CreatedAt = DateTime.UtcNow
+                    });
+                    _context.CashLedger.Add(new CashLedgerEntry
+                    {
+                        WalletId = wallet.Id, Type = CashLedgerType.Payment, AmountDelta = amount,
+                        Reason = "Süre borcu tahsilatı", UserId = userId, CreatedAt = DateTime.UtcNow
+                    });
+                }
+
                 await _context.SaveChangesAsync();
                 await RecomputeBalances(wallet);
                 return await GetWallet(customerId);

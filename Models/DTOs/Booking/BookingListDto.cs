@@ -6,13 +6,16 @@ namespace Iroh.Models.DTOs.Booking
         public int Id { get; set; }
         public BookingTableDto? Table { get; set; }
         public BookingCustomerDto? Customer { get; set; }
-        public decimal? Price { get; set; }
+        public decimal? Price { get; set; }                 // tahsil edilen ₺ (PayNow/misafir); Debt'te 0
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
         public DateTime? SubscriptionStartTime { get; set; }
         public DateTime? SubscriptionEndTime { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Note { get; set; }
+        // Ledger'dan türetilen kapanış kırılımı (gerçek kaynak; zaman farkından tahmin DEĞİL).
+        public int CoveredMinutes { get; set; }              // abonelikten düşülen (Σ Consumption)
+        public int DebtedMinutes { get; set; }               // borca yazılan süre (Σ DebtCharge)
     }
 
     public class BookingTableDto

@@ -21,6 +21,11 @@ namespace Iroh.Models.Entities
         [Column("cash_balance")]
         public decimal CashBalance { get; set; }
 
+        // Σ time_ledger {DebtCharge,DebtSettle} — kapsanmayan (aşım) sürenin SÜRE cinsinden borcu (≥0).
+        // Para-borcundan (cash_balance) ayrıdır; ödeme anında operatör para karşılığını girer.
+        [Column("time_debt_minutes")]
+        public int TimeDebtMinutes { get; set; }
+
         // Abonelik geçerlilik penceresi (tek pencere).
         [Column("valid_from")]
         public DateTime? ValidFrom { get; set; }

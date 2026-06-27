@@ -53,7 +53,6 @@ namespace Iroh.Tests
 
                 Assert.Equal(120, wallet.TimeBalanceMinutes);
                 Assert.Equal(0m, wallet.CashBalance);          // peşin satış net 0
-                Assert.Equal(0m, wallet.Debt);
                 Assert.Equal(nameof(SubscriptionStatus.ActiveSubscriber), wallet.Status);
             }
         }
@@ -76,12 +75,12 @@ namespace Iroh.Tests
                 Assert.Equal(0, res.UncoveredMinutes);
                 Assert.Equal(0m, res.Charged);
                 Assert.Equal(150, res.WalletAfter!.TimeBalanceMinutes);   // 180 - 30
-                Assert.Equal(0m, res.WalletAfter.Debt);
+                Assert.Equal(0m, res.WalletAfter.CashBalance);
             }
         }
 
         [Fact]
-        public async Task CloseBooking_PartialCoverage_Splits_AndDebtsRemainder()
+        public async Task CloseBooking_PartialCoverage_Splits_AndTimeDebtsRemainder()
         {
             var db = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
@@ -95,10 +94,11 @@ namespace Iroh.Tests
                 var res = await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);
                 Assert.Equal(20, res.CoveredMinutes);
                 Assert.Equal(30, res.UncoveredMinutes);
-                Assert.Equal(30m, res.Charged);                          // 1₺/dk
-                Assert.Equal(0, res.WalletAfter!.TimeBalanceMinutes);    // tümü tükendi
-                Assert.Equal(30m, res.WalletAfter.Debt);                 // borca yazıldı
-                Assert.Equal(-30m, res.WalletAfter.CashBalance);
+                Assert.Equal(30, res.DebtedMinutes);                     // aşım SÜRE borcuna yazıldı
+                Assert.Equal(0m, res.Charged);                           // Debt'te para kesilmez
+                Assert.Equal(0, res.WalletAfter!.TimeBalanceMinutes);    // 20 tükendi
+                Assert.Equal(30, res.WalletAfter.TimeDebtMinutes);       // 30 dk süre borcu
+                Assert.Equal(0m, res.WalletAfter.CashBalance);           // nakit hareketi yok
             }
         }
 
@@ -116,13 +116,12 @@ namespace Iroh.Tests
             {
                 var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, userId: 9);
                 Assert.Equal(30m, res.Charged);
-                Assert.Equal(0m, res.WalletAfter!.Debt);     // Charge + Payment net 0
-                Assert.Equal(0m, res.WalletAfter.CashBalance);
+                Assert.Equal(0m, res.WalletAfter!.CashBalance);  // Charge + Payment net 0
             }
         }
 
         [Fact]
-        public async Task CloseBooking_ExpiredSubscription_ChargesFullDuration()
+        public async Task CloseBooking_ExpiredSubscription_TimeDebtsFullDuration()
         {
             var db = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
@@ -137,8 +136,10 @@ namespace Iroh.Tests
                 var res = await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);
                 Assert.Equal(0, res.CoveredMinutes);          // geçerli değil → abonelikten düşmez
                 Assert.Equal(40, res.UncoveredMinutes);
-                Assert.Equal(40m, res.WalletAfter!.Debt);
-                Assert.Equal(100, res.WalletAfter.TimeBalanceMinutes);  // dokunulmadı
+                Assert.Equal(40, res.DebtedMinutes);
+                Assert.Equal(40, res.WalletAfter!.TimeDebtMinutes);     // tüm süre borca (SÜRE)
+                Assert.Equal(100, res.WalletAfter.TimeBalanceMinutes);  // ölü bakiye dokunulmadı
+                Assert.Equal(0m, res.WalletAfter.CashBalance);          // nakit hareketi yok
             }
         }
 
@@ -163,7 +164,49 @@ namespace Iroh.Tests
         }
 
         [Fact]
-        public async Task Settle_ReducesDebt()
+        public async Task CloseBooking_PayNow_UsesOperatorChargeAmount()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(50));   // 50 dk
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1)); // 20 dk
+
+            using (var c = NewContext(db))
+            {
+                // 30 dk aşım; operatör Company oranı yerine 99₺ giriyor.
+                var res = await NewService(c).CloseBooking(3, SettlementMode.PayNow, userId: 9, chargeAmount: 99m);
+                Assert.Equal(30, res.UncoveredMinutes);
+                Assert.Equal(99m, res.Charged);                          // operatör tutarı
+                Assert.Equal(0m, res.WalletAfter!.CashBalance);          // peşin → net 0
+                Assert.Equal(0, res.WalletAfter.TimeDebtMinutes);        // peşin → süre borcu yok
+            }
+        }
+
+        [Fact]
+        public async Task CreditTime_NetsExistingTimeDebt()
+        {
+            var db = Guid.NewGuid().ToString();
+            var now = DateTime.UtcNow;
+            using (var c = NewContext(db))
+                await SeedFamily(c, subStart: now, subEnd: now.AddMinutes(50));   // 50 dk
+            using (var c = NewContext(db))
+                await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1)); // 20 dk
+            using (var c = NewContext(db))
+                await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);   // 30 dk süre borcu
+
+            using (var c = NewContext(db))
+            {
+                // 50 dk yeni kredi: 30'u borcu kapatır, 20 kullanılabilir kalır.
+                var w = await NewService(c).CreditTime(1, 50, 0m, null, 9, now.AddDays(-1), now.AddDays(1));
+                Assert.Equal(0, w.TimeDebtMinutes);
+                Assert.Equal(20, w.TimeBalanceMinutes);
+            }
+        }
+
+        [Fact]
+        public async Task SettleTimeDebt_ClearsDebt_AndRecordsCashNetZero()
         {
             var db = Guid.NewGuid().ToString();
             var now = DateTime.UtcNow;
@@ -172,13 +215,13 @@ namespace Iroh.Tests
             using (var c = NewContext(db))
                 await NewService(c).CreditTime(1, 20, 0m, null, null, now.AddDays(-1), now.AddDays(1));
             using (var c = NewContext(db))
-                await NewService(c).CloseBooking(3, SettlementMode.Debt, 9);     // 30₺ borç
+                await NewService(c).CloseBooking(3, SettlementMode.Debt, userId: 9);   // 30 dk süre borcu
 
             using (var c = NewContext(db))
             {
-                var wallet = await NewService(c).Settle(1, amount: 20m, userId: 9);
-                Assert.Equal(10m, wallet.Debt);              // 30 - 20
-                Assert.Equal(-10m, wallet.CashBalance);
+                var w = await NewService(c).SettleTimeDebt(1, amount: 45m, userId: 9);
+                Assert.Equal(0, w.TimeDebtMinutes);      // süre borcu kapandı
+                Assert.Equal(0m, w.CashBalance);         // Charge + Payment net 0
             }
         }
 
