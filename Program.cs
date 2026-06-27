@@ -80,6 +80,7 @@ builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddControllers(options =>
     {
