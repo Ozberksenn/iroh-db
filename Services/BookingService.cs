@@ -1,3 +1,4 @@
+using Iroh.Domain;
 using Iroh.Models.DTOs.Booking;
 using Iroh.Models.DTOs.Common;
 using Iroh.Models.Entities;
@@ -102,6 +103,29 @@ namespace Iroh.Services
                 Note = b.Note
             }).ToListAsync();
 
+            // Kapanış kırılımı (gerçek kaynak = ledger): sayfadaki booking'ler için tek GroupBy sorgusu,
+            // sonra bellekte eşleştir. Abonelikten düşülen (Consumption, negatif) + borca yazılan (DebtCharge).
+            var bookingIds = items.Select(i => i.Id).ToList();
+            if (bookingIds.Count > 0)
+            {
+                var ledgerAgg = await _context.TimeLedger
+                    .Where(e => e.BookingId.HasValue && bookingIds.Contains(e.BookingId.Value)
+                                && (e.Type == TimeLedgerType.Consumption || e.Type == TimeLedgerType.DebtCharge))
+                    .GroupBy(e => new { BookingId = e.BookingId!.Value, e.Type })
+                    .Select(g => new { g.Key.BookingId, g.Key.Type, Minutes = g.Sum(x => x.MinutesDelta) })
+                    .ToListAsync();
+
+                foreach (var it in items)
+                {
+                    it.CoveredMinutes = -ledgerAgg
+                        .Where(a => a.BookingId == it.Id && a.Type == TimeLedgerType.Consumption)
+                        .Sum(a => a.Minutes);   // Consumption negatif → pozitife çevir
+                    it.DebtedMinutes = ledgerAgg
+                        .Where(a => a.BookingId == it.Id && a.Type == TimeLedgerType.DebtCharge)
+                        .Sum(a => a.Minutes);
+                }
+            }
+
             return new PagedResult<BookingListItemDto>
             {
                 Items = items,
@@ -122,8 +146,31 @@ namespace Iroh.Services
 
         public async Task<Booking> Create(Booking booking)
         {
+            // F1.1: Çocuk zorunlu — çocuksuz seans açılamaz (client de engeller, server kesin garanti).
+            if (booking.ChildId == null)
+                throw new BusinessRuleException("Çocuk seçimi zorunludur.");
+
+            // F1.1: Bir çocuk = en fazla bir açık (Active/Paused) seans. Sistem Misafiri (999999) muaf.
+            if (booking.ChildId.Value != SystemConstants.GuestCustomerId)
+            {
+                var childId = booking.ChildId.Value;
+                var hasOpen = await _context.Bookings.AnyAsync(b =>
+                    b.ChildId == childId &&
+                    (b.Status == BookingStatus.Active || b.Status == BookingStatus.Paused));
+                if (hasOpen)
+                    throw new BusinessRuleException("Bu çocuğun zaten açık bir seansı var.");
+            }
+
             _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                // Yarış: iki cihaz aynı anda açtı; ux_one_open_booking_per_child kısmi unique index yakaladı.
+                throw new BusinessRuleException("Bu çocuğun zaten açık bir seansı var.");
+            }
             return booking;
         }
 
@@ -135,6 +182,28 @@ namespace Iroh.Services
                 throw new NotFoundException("Kayıt bulunamadı");
             }
 
+            // F1.2: Bitmiş (Completed/Canceled) seans dokunulmazdır — yalnızca not düzenlenebilir.
+            var isFinished = existingBooking.Status == BookingStatus.Completed
+                          || existingBooking.Status == BookingStatus.Canceled;
+            if (isFinished)
+            {
+                if (updatedBooking.Status != existingBooking.Status)
+                    throw new BusinessRuleException("Tamamlanmış veya iptal edilmiş seans değiştirilemez.");
+                existingBooking.Note = updatedBooking.Note ?? existingBooking.Note;
+                await _context.SaveChangesAsync();
+                return existingBooking;
+            }
+
+            // F1.2: Tamamlama yalnızca ödeme akışıyla (kapatma) yapılır; generic update ile "Completed" yasak.
+            if (updatedBooking.Status == BookingStatus.Completed)
+                throw new BusinessRuleException("Tamamlama yalnızca ödeme akışıyla (kapatma) yapılır.");
+
+            // F1.2: Açık seans için izinli durumlar Active / Paused / Canceled.
+            if (updatedBooking.Status != BookingStatus.Active
+                && updatedBooking.Status != BookingStatus.Paused
+                && updatedBooking.Status != BookingStatus.Canceled)
+                throw new BusinessRuleException("Geçersiz seans durumu geçişi.");
+
             existingBooking.TableId = updatedBooking.TableId ?? existingBooking.TableId;
             existingBooking.StartTime = updatedBooking.StartTime ?? existingBooking.StartTime;
             existingBooking.EndTime = updatedBooking.EndTime ?? existingBooking.EndTime;
@@ -145,9 +214,21 @@ namespace Iroh.Services
             existingBooking.SubscriptionStartTime = updatedBooking.SubscriptionStartTime ?? existingBooking.SubscriptionStartTime;
             existingBooking.SubscriptionEndTime = updatedBooking.SubscriptionEndTime ?? existingBooking.SubscriptionEndTime;
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+            {
+                // Çocuk değiştirilip zaten açık seansı olan birine atanırsa kısmi unique index yakalar.
+                throw new BusinessRuleException("Bu çocuğun zaten açık bir seansı var.");
+            }
 
             return existingBooking;
         }
+
+        // Postgres unique-constraint ihlali (23505) tespiti — yarış durumlarında dostane hataya çevirmek için.
+        private static bool IsUniqueViolation(DbUpdateException ex) =>
+            ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505";
     }
 }

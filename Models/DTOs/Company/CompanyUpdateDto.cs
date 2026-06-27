@@ -9,8 +9,8 @@ namespace Iroh.Models.DTOs.Company
 
         public required string Name { get; set; }
 
-        public required int FirstHourPrice { get; set; }
+        public required decimal FirstHourPrice { get; set; }
 
-        public required int AdditionalHalfHourPrice { get; set; }
+        public required decimal AdditionalHalfHourPrice { get; set; }
     }
 }

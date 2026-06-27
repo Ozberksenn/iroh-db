@@ -31,8 +31,8 @@ namespace Iroh.Tests
             var dto = CompanyDto.From(new Company { Id = 1, Name = "Iroh", FirstHourPrice = 100, AdditionalHalfHourPrice = 50 });
             Assert.Equal(1, dto.Id);
             Assert.Equal("Iroh", dto.Name);
-            Assert.Equal(100, dto.FirstHourPrice);
-            Assert.Equal(50, dto.AdditionalHalfHourPrice);
+            Assert.Equal(100m, dto.FirstHourPrice);
+            Assert.Equal(50m, dto.AdditionalHalfHourPrice);
         }
 
         [Fact]

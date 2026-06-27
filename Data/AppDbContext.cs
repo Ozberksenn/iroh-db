@@ -45,5 +45,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CashLedgerEntry>()
             .Property(e => e.Type)
             .HasConversion<string>();
+
+        // F1.3: Para/oran alanları numeric(12,2) — int kırpma yok, defterlerle tutarlı.
+        modelBuilder.Entity<Company>().Property(c => c.FirstHourPrice).HasPrecision(12, 2);
+        modelBuilder.Entity<Company>().Property(c => c.AdditionalHalfHourPrice).HasPrecision(12, 2);
+        modelBuilder.Entity<Package>().Property(p => p.Price).HasPrecision(12, 2);
+        modelBuilder.Entity<Package>().Property(p => p.Hours).HasPrecision(12, 2);
+        modelBuilder.Entity<Booking>().Property(b => b.Price).HasPrecision(12, 2);
+        modelBuilder.Entity<Wallet>().Property(w => w.CashBalance).HasPrecision(12, 2);
+        modelBuilder.Entity<CashLedgerEntry>().Property(e => e.AmountDelta).HasPrecision(12, 2);
     }
 }

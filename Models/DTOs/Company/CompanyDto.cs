@@ -6,8 +6,8 @@ namespace Iroh.Models.DTOs.Company
     {
         public int Id { get; set; }
         public required string Name { get; set; }
-        public int FirstHourPrice { get; set; }
-        public int AdditionalHalfHourPrice { get; set; }
+        public decimal FirstHourPrice { get; set; }
+        public decimal AdditionalHalfHourPrice { get; set; }
 
         public static CompanyDto From(Models.Entities.Company c) => new()
         {
