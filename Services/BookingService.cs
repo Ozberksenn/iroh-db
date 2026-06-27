@@ -16,6 +16,8 @@ namespace Iroh.Services
         Task<Booking?> GetById(int id);
         Task<Booking> Create(Booking booking);
         Task<Booking> Update(int id, BookingUpdateDto updatedBooking);
+        // F2.5: durum değişimi + geçmiş log'u TEK transaction'da (atomik). userId JWT'den gelir.
+        Task<Booking> ChangeStatus(int id, BookingStatus target, BookingLogType logType, int? minutesAgo, string? note, int? userId);
     }
 
     public class BookingService : IBookingService
@@ -225,6 +227,61 @@ namespace Iroh.Services
             }
 
             return existingBooking;
+        }
+
+        // F2.5: pause/resume/cancel — durum geçişini doğrula, durum + BookingLog'u TEK transaction'da yaz.
+        public async Task<Booking> ChangeStatus(int id, BookingStatus target, BookingLogType logType,
+            int? minutesAgo, string? note, int? userId)
+        {
+            var booking = await _context.Bookings.FindAsync(id)
+                ?? throw new NotFoundException("Kayıt bulunamadı");
+
+            // Bitmiş seans değiştirilemez (F1.2 ile aynı kural).
+            if (booking.Status == BookingStatus.Completed || booking.Status == BookingStatus.Canceled)
+                throw new BusinessRuleException("Tamamlanmış veya iptal edilmiş seans değiştirilemez.");
+
+            // Geçiş matrisi: duraklat Active→Paused, devam Paused→Active, iptal Active/Paused→Canceled.
+            var ok = target switch
+            {
+                BookingStatus.Paused => booking.Status == BookingStatus.Active,
+                BookingStatus.Active => booking.Status == BookingStatus.Paused,
+                BookingStatus.Canceled => booking.Status is BookingStatus.Active or BookingStatus.Paused,
+                _ => false
+            };
+            if (!ok)
+                throw new BusinessRuleException("Geçersiz seans durumu geçişi.");
+
+            var time = DateTime.UtcNow.AddMinutes(-(minutesAgo ?? 0));
+
+            return await InTransaction(async () =>
+            {
+                booking.Status = target;
+                if (!string.IsNullOrWhiteSpace(note)) booking.Note = note;
+                if (target == BookingStatus.Canceled) booking.EndTime = time;
+
+                _context.BookingLogs.Add(new BookingLog
+                {
+                    BookingId = booking.Id,
+                    Time = time,
+                    Type = logType,
+                    UserId = userId
+                });
+
+                await _context.SaveChangesAsync();
+                return booking;
+            });
+        }
+
+        // Mutasyonu transaction içinde çalıştırır. InMemory (testler) transaction desteklemez → doğrudan koşar.
+        private async Task<T> InTransaction<T>(Func<Task<T>> action)
+        {
+            if (!_context.Database.IsRelational())
+                return await action();
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            var result = await action();
+            await tx.CommitAsync();
+            return result;
         }
 
         // Postgres unique-constraint ihlali (23505) tespiti — yarış durumlarında dostane hataya çevirmek için.

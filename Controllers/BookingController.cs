@@ -79,6 +79,31 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(BookingDto.From(updated), "Başarılı"));
         }
 
+        // F2.5: durum değişimi + geçmiş log'u tek transaction'da. userId JWT'den (CurrentUserId).
+        [HttpPost("{id}/pause")]
+        public async Task<IActionResult> Pause(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Paused, BookingLogType.Pause,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans duraklatıldı"));
+        }
+
+        [HttpPost("{id}/resume")]
+        public async Task<IActionResult> Resume(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Active, BookingLogType.Continue,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans devam ettirildi"));
+        }
+
+        [HttpPost("{id}/cancel")]
+        public async Task<IActionResult> Cancel(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Canceled, BookingLogType.Cancel,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans iptal edildi"));
+        }
+
         // Oturum kapanışı (docs/wallet-redesign.md §4): kapsama (BÖL) → zaman tüketimi +
         // kapsanmayan süre için ücret. settlement: "PayNow" (peşin) | "Debt" (borca yaz).
         [HttpPost("{id}/close")]

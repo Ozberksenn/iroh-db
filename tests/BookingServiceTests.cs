@@ -172,5 +172,80 @@ namespace Iroh.Tests
                 Assert.Equal(BookingStatus.Paused, updated.Status);
             }
         }
+
+        // ---- F2.5: atomik durum değişimi (ChangeStatus) ----
+        [Fact]
+        public async Task ChangeStatus_Pause_SetsPaused_AndWritesLog()
+        {
+            var db = Guid.NewGuid().ToString();
+            using (var c = NewContext(db))
+            {
+                c.Bookings.Add(new Booking { Id = 1, ChildId = 5, Status = BookingStatus.Active });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var svc = new BookingService(c);
+                var b = await svc.ChangeStatus(1, BookingStatus.Paused, BookingLogType.Pause, 0, null, 7);
+                Assert.Equal(BookingStatus.Paused, b.Status);
+                var log = await c.BookingLogs.SingleAsync(l => l.BookingId == 1);
+                Assert.Equal(BookingLogType.Pause, log.Type);
+                Assert.Equal(7, log.UserId);
+            }
+        }
+
+        [Fact]
+        public async Task ChangeStatus_Cancel_SetsEndTime_AndLog()
+        {
+            var db = Guid.NewGuid().ToString();
+            using (var c = NewContext(db))
+            {
+                c.Bookings.Add(new Booking { Id = 1, ChildId = 5, Status = BookingStatus.Paused });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var svc = new BookingService(c);
+                var b = await svc.ChangeStatus(1, BookingStatus.Canceled, BookingLogType.Cancel, 0, "iptal notu", 7);
+                Assert.Equal(BookingStatus.Canceled, b.Status);
+                Assert.NotNull(b.EndTime);
+                Assert.Equal("iptal notu", b.Note);
+                Assert.Equal(1, await c.BookingLogs.CountAsync(l => l.BookingId == 1 && l.Type == BookingLogType.Cancel));
+            }
+        }
+
+        [Fact]
+        public async Task ChangeStatus_Pause_OnAlreadyPaused_Throws()
+        {
+            var db = Guid.NewGuid().ToString();
+            using (var c = NewContext(db))
+            {
+                c.Bookings.Add(new Booking { Id = 1, ChildId = 5, Status = BookingStatus.Paused });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var svc = new BookingService(c);
+                await Assert.ThrowsAsync<BusinessRuleException>(() =>
+                    svc.ChangeStatus(1, BookingStatus.Paused, BookingLogType.Pause, 0, null, 7));
+            }
+        }
+
+        [Fact]
+        public async Task ChangeStatus_OnFinished_Throws()
+        {
+            var db = Guid.NewGuid().ToString();
+            using (var c = NewContext(db))
+            {
+                c.Bookings.Add(new Booking { Id = 1, ChildId = 5, Status = BookingStatus.Completed });
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var svc = new BookingService(c);
+                await Assert.ThrowsAsync<BusinessRuleException>(() =>
+                    svc.ChangeStatus(1, BookingStatus.Canceled, BookingLogType.Cancel, 0, null, 7));
+            }
+        }
     }
 }
