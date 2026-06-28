@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
+// .env dosyasındaki değişkenleri yükle
+DotNetEnv.Env.Load();
+
 // TIMEZONE STANDARDI: tüm zaman damgaları UTC instant olarak saklanır/işlenir.
 // timestamptz <-> DateTime(Kind=Utc) eşlenir; DB'ye yalnızca Kind=Utc DateTime yazılabilir
 // (Local/Unspecified yazımı Npgsql tarafından REDDEDİLİR -> kasıtlı koruma, sessiz kaymayı önler).
@@ -46,10 +49,12 @@ builder.Services.AddAuthorization();
 // CORS: izin verilen origin'ler config'ten (Cors:AllowedOrigins) gelir; hardcode yok.
 // Dev'de değer yoksa Vite varsayılanına (localhost:5173) düşer; prod'da boşsa hiçbir cross-origin'e izin verilmez (fail-closed).
 const string CorsPolicyName = "IrohClient";
-var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var corsAllowedOrigins = builder.Configuration["Cors:AllowedOrigins"];
+var corsOrigins = corsAllowedOrigins?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+
 if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
 {
-    corsOrigins = new[] { "http://localhost:5173", "http://localhost:3000" };
+    corsOrigins = new[] { "http://localhost:5173", "http://localhost:3000", "https://playground-management.vercel.app" };
 }
 
 builder.Services.AddCors(options =>
@@ -144,11 +149,8 @@ var app = builder.Build();
 // Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // app.UseHttpsRedirection(); // Yerel testlerde token kaybını önlemek için kapattık
 
