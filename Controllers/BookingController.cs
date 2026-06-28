@@ -1,5 +1,7 @@
 using Iroh.Models.DTOs.Booking;
+using Iroh.Models.DTOs.Wallet;
 using Iroh.Models.Entities;
+using Iroh.Models.Enums;
 using Iroh.Models.Responses;
 using Iroh.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,12 +16,17 @@ namespace Iroh.Controllers
     {
         private readonly IBookingService _bookingService;
         private readonly ISubscriptionService _subscriptionService;
+        private readonly IWalletService _walletService;
 
-        public BookingController(IBookingService bookingService, ISubscriptionService subscriptionService)
+        public BookingController(IBookingService bookingService, ISubscriptionService subscriptionService, IWalletService walletService)
         {
             _bookingService = bookingService;
             _subscriptionService = subscriptionService;
+            _walletService = walletService;
         }
+
+        private int? CurrentUserId() =>
+            int.TryParse(User.FindFirst("id")?.Value, out var id) ? id : (int?)null;
 
         // usp_get_bookings: GET /api/booking?page=&size=&status=&name=&customerId=&childId=&startTime=&endTime=&tableId=
         [HttpGet]
@@ -70,6 +77,43 @@ namespace Iroh.Controllers
             // Kayıt yoksa servis NotFoundException atar → handler 404.
             var updated = await _bookingService.Update(bookingUpdateDto.Id, bookingUpdateDto);
             return Ok(ApiResponse.Ok(BookingDto.From(updated), "Başarılı"));
+        }
+
+        // F2.5: durum değişimi + geçmiş log'u tek transaction'da. userId JWT'den (CurrentUserId).
+        [HttpPost("{id}/pause")]
+        public async Task<IActionResult> Pause(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Paused, BookingLogType.Pause,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans duraklatıldı"));
+        }
+
+        [HttpPost("{id}/resume")]
+        public async Task<IActionResult> Resume(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Active, BookingLogType.Continue,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans devam ettirildi"));
+        }
+
+        [HttpPost("{id}/cancel")]
+        public async Task<IActionResult> Cancel(int id, [FromBody] BookingStatusChangeDto? dto)
+        {
+            var b = await _bookingService.ChangeStatus(id, BookingStatus.Canceled, BookingLogType.Cancel,
+                dto?.MinutesAgo, dto?.Note, CurrentUserId());
+            return Ok(ApiResponse.Ok(BookingDto.From(b), "Seans iptal edildi"));
+        }
+
+        // Oturum kapanışı (docs/wallet-redesign.md §4): kapsama (BÖL) → zaman tüketimi +
+        // kapsanmayan süre için ücret. settlement: "PayNow" (peşin) | "Debt" (borca yaz).
+        [HttpPost("{id}/close")]
+        public async Task<IActionResult> Close(int id, BookingCloseDto dto)
+        {
+            var mode = Enum.TryParse<SettlementMode>(dto.Settlement, ignoreCase: true, out var m)
+                ? m : SettlementMode.PayNow;
+            var result = await _walletService.CloseBooking(id, mode, CurrentUserId(),
+                dto.EndTime, dto.Note, dto.TableId, dto.ChildId, dto.ChargeAmount);
+            return Ok(ApiResponse.Ok(result, "Oturum kapatıldı"));
         }
     }
 }

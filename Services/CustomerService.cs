@@ -22,9 +22,11 @@ namespace Iroh.Services
         private const int SystemGuestId = Iroh.Domain.SystemConstants.GuestCustomerId;
 
         private readonly AppDbContext _context;
-        public CustomerService(AppDbContext context)
+        private readonly ISubscriptionService _subscriptionService;
+        public CustomerService(AppDbContext context, ISubscriptionService subscriptionService)
         {
             _context = context;
+            _subscriptionService = subscriptionService;
         }
 
         // fn_get_customer_by_id: yalnızca silinmemiş kayıt döner.
@@ -54,14 +56,37 @@ namespace Iroh.Services
 
             if (!string.IsNullOrWhiteSpace(status))
             {
+                // Bakiye-duyarlı filtre, gösterilen rozetle (WalletService.Derive) aynı sinyaller:
+                //   ActiveSubscriber = geçerli Credit penceresi VE materyalize bakiye>0 (kullanılabilir)
+                //   Subscriber (pasif) = abonelik geçmişi var, Active değil ve saf-upcoming değil → süresi dolmuş VEYA bakiyesi bitmiş
+                //   Customer = hiç Credit yok
+                // (EF expression-tree → yüklemler inline; local function çevrilemez.)
                 query = status switch
                 {
                     "ActiveSubscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
+                        _context.Wallets.Any(w => w.CustomerId == c.Id && w.TimeBalanceMinutes > 0)
+                        && _context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                            && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id)
+                            && (e.ValidFrom == null || e.ValidFrom <= now)
+                            && (e.ValidTo == null || e.ValidTo >= now))),
                     "Subscriber" => query.Where(c =>
-                        _context.Purchases.Any(p => p.CustomerId == c.Id)
-                        && !_context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)),
-                    "Customer" => query.Where(c => !_context.Purchases.Any(p => p.CustomerId == c.Id)),
+                        _context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                            && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id))
+                        && !(_context.Wallets.Any(w => w.CustomerId == c.Id && w.TimeBalanceMinutes > 0)
+                            && _context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                                && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id)
+                                && (e.ValidFrom == null || e.ValidFrom <= now)
+                                && (e.ValidTo == null || e.ValidTo >= now)))
+                        && !(_context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                                && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id)
+                                && e.ValidFrom != null && e.ValidFrom > now)
+                            && !_context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                                && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id)
+                                && (e.ValidFrom == null || e.ValidFrom <= now)
+                                && (e.ValidTo == null || e.ValidTo >= now)))),
+                    "Customer" => query.Where(c =>
+                        !_context.TimeLedger.Any(e => e.Type == TimeLedgerType.Credit
+                            && _context.Wallets.Any(w => w.Id == e.WalletId && w.CustomerId == c.Id))),
                     _ => query
                 };
             }
@@ -81,12 +106,20 @@ namespace Iroh.Services
                 LastName = c.LastName,
                 Phone = c.Phone,
                 Mail = c.Mail,
-                Status = _context.Purchases.Any(p => p.CustomerId == c.Id && p.StartDate <= now && p.EndDate >= now)
-                    ? "ActiveSubscriber"
-                    : _context.Purchases.Any(p => p.CustomerId == c.Id)
-                        ? "Subscriber"
-                        : "Customer"
+                Status = "Customer"   // gerçek statü aşağıda tek Derive ile
             }).ToListAsync();
+
+            // Statü tek doğruluk noktasından (WalletService.Derive — active-bookings/search-unified ile aynı):
+            // yalnız pencere + abonelik geçmişi. Borç (TimeDebtMinutes) statüden bağımsız ayrı sinyaldir.
+            var subs = await _subscriptionService.ComputeForParents(items.Select(i => i.Id).ToList());
+            foreach (var item in items)
+            {
+                if (subs.TryGetValue(item.Id, out var sub) && sub != null)
+                {
+                    item.Status = WalletService.Derive(sub.BestIsDateValid, sub.BestRemainingMinutes > 0, sub.HasUpcoming, sub.HasAny).ToString();
+                    item.TimeDebtMinutes = sub.TimeDebtMinutes;
+                }
+            }
 
             return new PagedResult<CustomerListItemDto>
             {

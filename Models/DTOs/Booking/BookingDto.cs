@@ -10,8 +10,6 @@ namespace Iroh.Models.DTOs.Booking
         public int? ChildId { get; set; }
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public DateTime? SubscriptionStartTime { get; set; }
-        public DateTime? SubscriptionEndTime { get; set; }
         public string Status { get; set; } = string.Empty;
         public decimal? Price { get; set; }
         public string? Note { get; set; }
@@ -23,8 +21,6 @@ namespace Iroh.Models.DTOs.Booking
             ChildId = b.ChildId,
             StartTime = b.StartTime,
             EndTime = b.EndTime,
-            SubscriptionStartTime = b.SubscriptionStartTime,
-            SubscriptionEndTime = b.SubscriptionEndTime,
             Status = b.Status.ToString(),
             Price = b.Price,
             Note = b.Note

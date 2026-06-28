@@ -46,15 +46,20 @@ namespace Iroh.Services
                 avgDuration = await durationQuery.AverageAsync(b => (b.EndTime!.Value - b.StartTime!.Value).TotalMinutes);
             }
 
-            var subscriptionSessions = await _context.PurchaseBookings
-                .Where(pb => _context.Bookings.Any(b => b.Id == pb.BookingId && b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted)))
-                .Select(pb => pb.BookingId)
+            // Abonelik oturumu = cüzdandan SÜRE tüketmiş oturum (time_ledger Consumption).
+            // Eski PurchaseBookings okuması migration sonrası yazılmadığı için bu metrik latent kırıktı; cüzdan düzeltir.
+            var subscriptionSessions = await _context.TimeLedger
+                .Where(e => e.Type == TimeLedgerType.Consumption && e.BookingId != null
+                    && _context.Bookings.Any(b => b.Id == e.BookingId && b.StartTime >= startDate && b.StartTime <= endDate && (b.Child.Parent == null || !b.Child.Parent.IsDeleted)))
+                .Select(e => e.BookingId)
                 .Distinct()
                 .CountAsync();
 
-            var purchaseRevenue = await _context.Purchases
-                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .SumAsync(p => (decimal)p.Price);
+            // Kredi satışı geliri = cash_ledger Charge (booking'siz). Charge = satış değeri (peşin/borç fark etmez);
+            // CloseBooking ücretleri booking_id taşır → hariç (onlar bookingRevenue'da). Σ(−amount_delta) = gelir.
+            var purchaseRevenue = -(await _context.CashLedger
+                .Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate)
+                .SumAsync(cl => (decimal?)cl.AmountDelta) ?? 0m);
 
             response.Overview = new DashboardOverviewDto
             {
@@ -65,7 +70,7 @@ namespace Iroh.Services
                 TotalRevenue = bookingRevenue + purchaseRevenue,
                 AverageDurationMinutes = (int)Math.Round(avgDuration),
                 CancelationRate = totalBookings > 0 ? (int)Math.Round((double)canceledCount / totalBookings * 100) : 0,
-                PurchaseCount = await _context.Purchases.CountAsync(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                PurchaseCount = await _context.CashLedger.CountAsync(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate),
                 SubscriptionSessions = subscriptionSessions
             };
 
@@ -85,7 +90,7 @@ namespace Iroh.Services
                     CheckOut = b.EndTime,
                     Status = b.Status.ToString(),
                     Price = b.Price,
-                    IsSubscription = _context.PurchaseBookings.Any(pb => pb.BookingId == b.Id)
+                    IsSubscription = _context.TimeLedger.Any(e => e.BookingId == b.Id && e.Type == TimeLedgerType.Consumption)
                 })
                 .ToListAsync();
 
@@ -98,11 +103,14 @@ namespace Iroh.Services
                     Name = c.Name + " " + (c.LastName ?? ""),
                     // proc: child silinmemiş + aralıkta TÜM bookings (sadece Completed değil!).
                     VisitCount = _context.Bookings.Count(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate),
-                    PurchaseCount = _context.Purchases.Count(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate),
+                    // Kredi satışı = cash_ledger Charge (booking'siz); cüzdan üzerinden müşteriye bağlanır.
+                    PurchaseCount = _context.CashLedger.Count(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate
+                                    && _context.Wallets.Any(w => w.Id == cl.WalletId && w.CustomerId == c.Id)),
                     BookingSpent = _context.Bookings.Where(b => b.Child != null && b.Child.ParentId == c.Id && !b.Child.IsDeleted && b.StartTime >= startDate && b.StartTime <= endDate)
                                     .Sum(b => (decimal?)b.Price ?? 0),
-                    PurchaseSpent = _context.Purchases.Where(p => p.CustomerId == c.Id && p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                                    .Sum(p => (decimal)p.Price),
+                    PurchaseSpent = -(_context.CashLedger.Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate
+                                    && _context.Wallets.Any(w => w.Id == cl.WalletId && w.CustomerId == c.Id))
+                                    .Sum(cl => (decimal?)cl.AmountDelta) ?? 0m),
                 })
                 .Where(tc => tc.VisitCount > 0 || tc.PurchaseCount > 0)
                 .OrderByDescending(tc => tc.BookingSpent + tc.PurchaseSpent)
@@ -116,23 +124,33 @@ namespace Iroh.Services
             }
             response.TopCustomers = topCustomers;
 
-            // 4. Revenue Chart (fn_get_dashboard_revenue_chart)
+            // 4. Revenue Chart — kolonlar UTC; gün/saat bucket'ı Europe/Istanbul iş gününe göre.
+            // Çevrim bellek içinde yapılır (DST-güvenli); dashboard aralığı küçük olduğundan maliyet düşük.
+            var istanbul = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+            DateTime ToIst(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), istanbul);
+
             var dateList = new List<DateTime>();
-            for (var dt = startDate.Date; dt <= endDate.Date; dt = dt.AddDays(1)) {
+            for (var dt = ToIst(startDate).Date; dt <= ToIst(endDate).Date; dt = dt.AddDays(1)) {
                 dateList.Add(dt);
             }
 
-            var bookingRevs = await _context.Bookings
-                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
-                .GroupBy(b => b.StartTime!.Value.Date)
+            var bookingRevRows = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && b.StartTime != null)
+                .Select(b => new { Start = b.StartTime!.Value, b.Price })
+                .ToListAsync();
+            var bookingRevs = bookingRevRows
+                .GroupBy(b => ToIst(b.Start).Date)
                 .Select(g => new { Date = g.Key, Total = g.Sum(b => (decimal?)b.Price ?? 0) })
-                .ToListAsync();
+                .ToList();
 
-            var purchaseRevs = await _context.Purchases
-                .Where(p => p.CreatedAt >= startDate && p.CreatedAt <= endDate)
-                .GroupBy(p => p.CreatedAt.Date)
-                .Select(g => new { Date = g.Key, Total = g.Sum(p => (decimal)p.Price) })
+            var purchaseRevRows = await _context.CashLedger
+                .Where(cl => cl.Type == CashLedgerType.Charge && cl.BookingId == null && cl.CreatedAt >= startDate && cl.CreatedAt <= endDate)
+                .Select(cl => new { cl.CreatedAt, cl.AmountDelta })
                 .ToListAsync();
+            var purchaseRevs = purchaseRevRows
+                .GroupBy(cl => ToIst(cl.CreatedAt).Date)
+                .Select(g => new { Date = g.Key, Total = -g.Sum(cl => cl.AmountDelta) })
+                .ToList();
 
             response.RevenueChart = dateList.Select(d => new RevenueChartDto
             {
@@ -141,16 +159,16 @@ namespace Iroh.Services
                 PurchaseRevenue = purchaseRevs.FirstOrDefault(r => r.Date == d)?.Total ?? 0
             }).ToList();
 
-            // 5. Busy Hours (fn_get_dashboard_busy_hours) — saat bucket'ı SQL'de (Istanbul TZ), format/sıra bellekte.
-            var busyRaw = await _context.Bookings
-                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate)
-                .GroupBy(b => b.StartTime!.Value.Hour)
-                .Select(g => new { Hour = g.Key, Count = g.Count() })
+            // 5. Busy Hours — saat bucket'ı Europe/Istanbul'a göre (kolonlar UTC).
+            var busyStarts = await _context.Bookings
+                .Where(b => b.StartTime >= startDate && b.StartTime <= endDate && b.StartTime != null)
+                .Select(b => b.StartTime!.Value)
                 .ToListAsync();
 
-            response.BusyHoursChart = busyRaw
-                .OrderBy(x => x.Hour)
-                .Select(x => new BusyHourDto { Hour = x.Hour.ToString("D2") + ":00", Count = x.Count })
+            response.BusyHoursChart = busyStarts
+                .GroupBy(s => ToIst(s).Hour)
+                .OrderBy(g => g.Key)
+                .Select(g => new BusyHourDto { Hour = g.Key.ToString("D2") + ":00", Count = g.Count() })
                 .ToList();
 
             return response;

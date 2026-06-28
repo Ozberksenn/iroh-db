@@ -37,8 +37,8 @@ namespace Iroh.Services
 
         public async Task<Package> Create(Package package)
         {
-            package.CreatedAt = DateTime.Now;
-            package.UpdatedAt = DateTime.Now;
+            package.CreatedAt = DateTime.UtcNow;
+            package.UpdatedAt = DateTime.UtcNow;
             package.IsDeleted = false;
 
             _context.Packages.Add(package);
@@ -58,7 +58,7 @@ namespace Iroh.Services
             existing.Hours = package.Hours;
             existing.Price = package.Price;
             existing.ValidityDays = package.ValidityDays;
-            existing.UpdatedAt = DateTime.Now;
+            existing.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
         }
@@ -72,7 +72,7 @@ namespace Iroh.Services
             }
 
             package.IsDeleted = true;
-            package.UpdatedAt = DateTime.Now;
+            package.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
     }

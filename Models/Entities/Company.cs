@@ -9,9 +9,9 @@ namespace Iroh.Models.Entities
         public required string Name { get; set; }
 
         [Column("firsthourprice")]
-        public required int FirstHourPrice { get; set; }
+        public required decimal FirstHourPrice { get; set; }
 
         [Column("additionalhalfhourprice")]
-        public required int AdditionalHalfHourPrice { get; set; }
+        public required decimal AdditionalHalfHourPrice { get; set; }
     }
 }

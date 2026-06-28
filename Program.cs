@@ -9,7 +9,12 @@ using Microsoft.OpenApi.Models;
 // .env dosyasındaki değişkenleri yükle
 DotNetEnv.Env.Load();
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+// TIMEZONE STANDARDI: tüm zaman damgaları UTC instant olarak saklanır/işlenir.
+// timestamptz <-> DateTime(Kind=Utc) eşlenir; DB'ye yalnızca Kind=Utc DateTime yazılabilir
+// (Local/Unspecified yazımı Npgsql tarafından REDDEDİLİR -> kasıtlı koruma, sessiz kaymayı önler).
+// İş günü / görüntüleme için UTC -> Europe/Istanbul çevrimi açıkça yapılır (DashboardController + client).
+// Legacy davranış KAPALI tutulur; bunu true yapmak "duvar-saatini yerel say" hatasını geri getirir.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,13 +78,13 @@ builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IBookingLogService, BookingLogService>();
-builder.Services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
-builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IChildService, ChildService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IPricingService, PricingService>();
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 builder.Services.AddControllers(options =>
     {
@@ -95,6 +100,9 @@ builder.Services.AddControllers(options =>
         // Client ID/sayı alanlarını JSON string olarak gönderiyor (örn. tableId:"5", userId:"12");
         // sayısal alanların string'ten de okunabilmesine izin ver, aksi halde model-binding 400 atar.
         options.JsonSerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+        // Enum'lar string olarak okunup yazılsın (client status:"Active", settlement:"Debt" gönderir;
+        // DTO'lar da enum'u ToString()'ler). Converter yoksa enum girişi sayı beklenir → model-binding 400.
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -130,7 +138,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// AddDbContextPool: DbContext instance'ları havuzlanır (her istekte yeniden kurulum/allocation
+// maliyetini düşürür). Güvenli, çünkü AppDbContext yalnızca DbContextOptions alır (başka scoped
+// servis enjekte etmez) — pooling'in ön koşulu.
+builder.Services.AddDbContextPool<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();

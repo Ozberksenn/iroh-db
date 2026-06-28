@@ -76,12 +76,8 @@ namespace Iroh.Services
                 subs.TryGetValue(r.parentId, out var sub);
                 sub ??= new SubscriptionService.ParentSubscription();
 
-                // 5 kademe: eski fn_search_unified + aktif-seans yoluyla parite (süresi geçmiş abone = Subscriber).
-                var status = (sub.BestIsDateValid && sub.BestRemainingMinutes > 0) ? "ActiveSubscriber"
-                           : sub.BestIsDateValid ? "OverageSubscriber"
-                           : sub.HasUpcoming ? "UpcomingSubscriber"
-                           : sub.HasAny ? "Subscriber"
-                           : "Customer";
+                // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — active-bookings ile ortak.
+                var status = WalletService.Derive(sub.BestIsDateValid, sub.BestRemainingMinutes > 0, sub.HasUpcoming, sub.HasAny).ToString();
 
                 return new
                 {
@@ -93,7 +89,9 @@ namespace Iroh.Services
                         parent_name = r.parentName + " " + (r.parentLastName ?? ""),
                         parent_phone = r.parentPhone ?? "",
                         Status = status,
-                        remaining_hours = (decimal)(sub.BestRemainingMinutes / 60.0),
+                        // Net pozisyon: kullanılabilir bakiye − süre-borcu. Borçluysa NEGATİF döner
+                        // (bakiye 0 + 60dk borç → -1sa); picker bunu amber "aşımda" görseliyle gösterir.
+                        remaining_hours = (decimal)((sub.BestRemainingMinutes - sub.TimeDebtMinutes) / 60.0),
                         is_active = r.childId.HasValue && activeChildIds.Contains(r.childId.Value),
                         current_table_name = r.childId.HasValue && tableByChild.TryGetValue(r.childId.Value, out var tn) ? tn : null
                     },
@@ -119,10 +117,10 @@ namespace Iroh.Services
             {
                 ParentId = parentId,
                 Name = name,
-                BirthDate = birthDate ?? DateTime.MinValue,
+                BirthDate = birthDate,
                 IsDeleted = false,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             _context.Children.Add(child);
@@ -151,7 +149,7 @@ namespace Iroh.Services
             {
                 child.BirthDate = birthDate.Value;
             }
-            child.UpdatedAt = DateTime.Now;
+            child.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
         }
@@ -171,7 +169,7 @@ namespace Iroh.Services
             }
 
             child.IsDeleted = true;
-            child.UpdatedAt = DateTime.Now;
+            child.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
 
