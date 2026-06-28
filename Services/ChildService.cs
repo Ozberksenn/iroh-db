@@ -77,7 +77,7 @@ namespace Iroh.Services
                 sub ??= new SubscriptionService.ParentSubscription();
 
                 // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — active-bookings ile ortak.
-                var status = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
+                var status = WalletService.Derive(sub.BestIsDateValid, sub.BestRemainingMinutes > 0, sub.HasUpcoming, sub.HasAny).ToString();
 
                 return new
                 {
@@ -89,7 +89,9 @@ namespace Iroh.Services
                         parent_name = r.parentName + " " + (r.parentLastName ?? ""),
                         parent_phone = r.parentPhone ?? "",
                         Status = status,
-                        remaining_hours = (decimal)(sub.BestRemainingMinutes / 60.0),
+                        // Net pozisyon: kullanılabilir bakiye − süre-borcu. Borçluysa NEGATİF döner
+                        // (bakiye 0 + 60dk borç → -1sa); picker bunu amber "aşımda" görseliyle gösterir.
+                        remaining_hours = (decimal)((sub.BestRemainingMinutes - sub.TimeDebtMinutes) / 60.0),
                         is_active = r.childId.HasValue && activeChildIds.Contains(r.childId.Value),
                         current_table_name = r.childId.HasValue && tableByChild.TryGetValue(r.childId.Value, out var tn) ? tn : null
                     },

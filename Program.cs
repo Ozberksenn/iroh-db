@@ -133,7 +133,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// AddDbContextPool: DbContext instance'ları havuzlanır (her istekte yeniden kurulum/allocation
+// maliyetini düşürür). Güvenli, çünkü AppDbContext yalnızca DbContextOptions alır (başka scoped
+// servis enjekte etmez) — pooling'in ön koşulu.
+builder.Services.AddDbContextPool<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();

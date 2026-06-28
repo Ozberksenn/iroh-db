@@ -13,8 +13,6 @@ namespace Iroh.Models.DTOs.Booking
         public decimal? Price { get; set; }
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public DateTime? SubscriptionStartTime { get; set; }
-        public DateTime? SubscriptionEndTime { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Note { get; set; }
         public List<BookingLogDto> Logs { get; set; } = new();

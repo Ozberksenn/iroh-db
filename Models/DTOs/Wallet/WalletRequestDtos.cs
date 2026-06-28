@@ -40,8 +40,7 @@ namespace Iroh.Models.DTOs.Wallet
     public class BookingCloseDto
     {
         public string Settlement { get; set; } = "PayNow";
-        public DateTime? SubscriptionEndTime { get; set; }  // tam süre penceresi (BÖL'ü servis yapar); verilmezse now
-        public DateTime? EndTime { get; set; }              // verilmezse now
+        public DateTime? EndTime { get; set; }              // faturalanan süre penceresi sonu; verilmezse now
         public string? Note { get; set; }
         public int? TableId { get; set; }
         public int? ChildId { get; set; }

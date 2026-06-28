@@ -112,7 +112,7 @@ namespace Iroh.Controllers
             var mode = Enum.TryParse<SettlementMode>(dto.Settlement, ignoreCase: true, out var m)
                 ? m : SettlementMode.PayNow;
             var result = await _walletService.CloseBooking(id, mode, CurrentUserId(),
-                dto.SubscriptionEndTime, dto.EndTime, dto.Note, dto.TableId, dto.ChildId, dto.ChargeAmount);
+                dto.EndTime, dto.Note, dto.TableId, dto.ChildId, dto.ChargeAmount);
             return Ok(ApiResponse.Ok(result, "Oturum kapatıldı"));
         }
     }

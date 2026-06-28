@@ -27,11 +27,8 @@ namespace Iroh.Models.Entities
         [Column("note")]
         public string? Note { get; set; }
 
-        [Column("subscriptionstarttime")]
-        public DateTime? SubscriptionStartTime { get; set; }
-
-        [Column("subscriptionendtime")]
-        public DateTime? SubscriptionEndTime { get; set; }
+        // NOT: subscriptionstarttime/subscriptionendtime DB kolonları artık KULLANILMIYOR (dormant).
+        // Faturalanan süre = StartTime..EndTime; abonelik kapsama ayrımı time_ledger'da. (docs/subscription-buckets.md)
 
         [Column("child_id")]
         public int? ChildId { get; set; }

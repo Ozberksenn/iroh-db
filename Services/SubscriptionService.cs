@@ -30,6 +30,7 @@ namespace Iroh.Services
             public double BestUsedMinutes { get; init; }
             public bool HasUpcoming { get; init; }
             public bool HasAny { get; init; }
+            public int TimeDebtMinutes { get; init; }   // süre-borcu (statüden bağımsız ayrı sinyal)
         }
 
         // Cüzdandan okur (docs/wallet-redesign.md): müşteri başına tek bakiye + geçerlilik.
@@ -58,18 +59,17 @@ namespace Iroh.Services
 
                 var rows = ledger.Where(e => e.WalletId == wallet.Id).ToList();
                 var used = -rows.Where(e => e.Type == Models.Enums.TimeLedgerType.Consumption).Sum(e => e.MinutesDelta); // pozitif dk
-                var hasCredit = rows.Any(e => e.Type == Models.Enums.TimeLedgerType.Credit);
-                var isValid = wallet.ValidFrom.HasValue && wallet.ValidTo.HasValue
-                              && wallet.ValidFrom.Value <= now && wallet.ValidTo.Value >= now;
-                var hasUpcoming = wallet.ValidFrom.HasValue && wallet.ValidFrom.Value > now;
+                // Aşama B: kova durumu (geçerli kovaların kalanı + pencere) tek kaynaktan.
+                var bs = WalletService.ComputeBuckets(rows, now);
                 result[pid] = new ParentSubscription
                 {
                     HasWallet = true,
-                    BestRemainingMinutes = wallet.TimeBalanceMinutes,
-                    BestIsDateValid = isValid,
+                    BestRemainingMinutes = bs.AvailableNow,
+                    BestIsDateValid = bs.HasValidNow,
                     BestUsedMinutes = used,
-                    HasUpcoming = hasUpcoming,
-                    HasAny = hasCredit
+                    HasUpcoming = bs.HasUpcoming,
+                    HasAny = bs.HasAny,
+                    TimeDebtMinutes = wallet.TimeDebtMinutes
                 };
             }
 
@@ -109,10 +109,12 @@ namespace Iroh.Services
                     if (parent != null && subs.TryGetValue(parent.Id, out var sub))
                     {
                         // Tek statü fonksiyonu (docs/wallet-redesign.md §3) — eski 5 dalın birebir karşılığı.
-                        tier = WalletService.Derive((int)sub.BestRemainingMinutes, sub.BestIsDateValid, sub.HasUpcoming, sub.HasAny).ToString();
+                        tier = WalletService.Derive(sub.BestIsDateValid, sub.BestRemainingMinutes > 0, sub.HasUpcoming, sub.HasAny).ToString();
 
-                        // Finalize bakiye (canlı oturum hariç); client canlı elapsed'i çıkarır. null = cüzdan yok.
-                        remainingMinutes = sub.HasWallet ? (int)sub.BestRemainingMinutes : (int?)null;
+                        // Finalize bakiye (canlı oturum hariç); client canlı elapsed'i çıkarır.
+                        // null = ABONE DEĞİL → client normal fiyat hesaplar. Boş cüzdanlı (geçmiş nakit kapanışından
+                        // kalan) Customer da null olmalı → kapı HasWallet DEĞİL HasAny (abonelik geçmişi).
+                        remainingMinutes = sub.HasAny ? (int)sub.BestRemainingMinutes : (int?)null;
                     }
                     customer = new ActiveBookingCustomerDto
                     {
@@ -139,8 +141,6 @@ namespace Iroh.Services
                     Price = b.Price,
                     StartTime = b.StartTime,
                     EndTime = b.EndTime,
-                    SubscriptionStartTime = b.SubscriptionStartTime,
-                    SubscriptionEndTime = b.SubscriptionEndTime,
                     Status = b.Status.ToString(),
                     Note = b.Note,
                     Logs = b.Logs

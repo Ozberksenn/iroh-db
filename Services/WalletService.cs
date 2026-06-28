@@ -24,9 +24,9 @@ namespace Iroh.Services
 
         // Oturum kapanışı: kapsama hesabı (BÖL) → zaman tüketimi + kapsanmayan süre için ücret/borç.
         // Debt → aşım SÜRE borcu (DebtCharge); PayNow → chargeAmount (operatör tutarı, verilmezse Company oranı).
-        // Tamamlama tek uç: booking alanlarını (sub-time/endTime/not/masa/çocuk) da finalize eder.
+        // Tamamlama tek uç: booking alanlarını (endTime/not/masa/çocuk) da finalize eder.
         Task<CloseBookingResultDto> CloseBooking(int bookingId, SettlementMode settlement, int? userId,
-            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
+            DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
             decimal? chargeAmount = null);
 
         // Borç ödeme: tüm (süre) borcu kapanır (kısmi yok); operatör para karşılığını girer.
@@ -47,16 +47,78 @@ namespace Iroh.Services
             _pricing = pricing;
         }
 
-        // ---- statü türetimi: eski 5 dallı mantığın TEK karşılığı ----
-        public static SubscriptionStatus Derive(int timeBalance, bool validNow, bool hasUpcoming, bool hasAny) =>
-            validNow && timeBalance > 0 ? SubscriptionStatus.ActiveSubscriber
-          : validNow                    ? SubscriptionStatus.OverageSubscriber
-          : hasUpcoming                 ? SubscriptionStatus.UpcomingSubscriber
-          : hasAny                      ? SubscriptionStatus.Subscriber
-          :                               SubscriptionStatus.Customer;
+        // ---- statü türetimi: Aktif = geçerli pencere VE kullanılabilir bakiye. Geçerli ama bakiye 0 (tükenmiş)
+        // → Pasif (Subscriber), süresi dolmuşla aynı kovada. Kalan dakika/borç ayrı sinyaller. ----
+        public static SubscriptionStatus Derive(bool validNow, bool hasBalance, bool hasUpcoming, bool hasAny) =>
+            validNow && hasBalance ? SubscriptionStatus.ActiveSubscriber
+          : validNow              ? SubscriptionStatus.Subscriber          // geçerli ama bakiye bitmiş → pasif
+          : hasUpcoming           ? SubscriptionStatus.UpcomingSubscriber
+          : hasAny                ? SubscriptionStatus.Subscriber           // süresi dolmuş → pasif
+          :                         SubscriptionStatus.Customer;
 
-        private static bool IsValidNow(Wallet w, DateTime now) =>
-            w.ValidFrom.HasValue && w.ValidTo.HasValue && w.ValidFrom.Value <= now && w.ValidTo.Value >= now;
+        // ---- kova durumu (Aşama B, docs/subscription-buckets.md): time_ledger satırlarından SAF türetim ----
+        public readonly record struct BucketState(
+            int AvailableNow, bool HasValidNow, bool HasUpcoming, bool HasAny,
+            DateTime? NextExpiry, DateTime? AggValidFrom, DateTime? AggValidTo, int Burned);
+
+        private sealed class Bucket { public DateTime? Vf; public DateTime? Vt; public int Remaining; }
+
+        private static bool BucketValidAt(Bucket b, DateTime t) =>
+            (!b.Vf.HasValue || b.Vf.Value <= t) && (!b.Vt.HasValue || b.Vt.Value >= t);
+
+        // Kronolojik yeniden-oynatma: her Consumption o anda geçerli kovalardan önce-süresi-dolacak sırayla düşülür;
+        // kovalar yetmezse süresiz "havuz"dan (Correction/Refund). Süresi dolan kovanın kalanı yanar (AvailableNow'a girmez).
+        public static BucketState ComputeBuckets(IReadOnlyList<TimeLedgerEntry> rows, DateTime now)
+        {
+            var ordered = rows
+                .Where(r => r.Type == TimeLedgerType.Credit || r.Type == TimeLedgerType.Consumption
+                         || r.Type == TimeLedgerType.Correction || r.Type == TimeLedgerType.Refund)
+                .OrderBy(r => r.CreatedAt).ThenBy(r => r.Id).ToList();
+
+            var buckets = new List<Bucket>();
+            var pool = 0;
+            var hasAny = false;
+
+            foreach (var r in ordered)
+            {
+                switch (r.Type)
+                {
+                    case TimeLedgerType.Credit:
+                        hasAny = true;
+                        buckets.Add(new Bucket { Vf = r.ValidFrom, Vt = r.ValidTo, Remaining = r.MinutesDelta });
+                        break;
+                    case TimeLedgerType.Consumption:
+                        var need = -r.MinutesDelta;   // tüketim negatif → pozitif ihtiyaç
+                        foreach (var b in buckets
+                            .Where(x => x.Remaining > 0 && BucketValidAt(x, r.CreatedAt))
+                            .OrderBy(x => x.Vt ?? DateTime.MaxValue).ThenBy(x => x.Vf ?? DateTime.MinValue))
+                        {
+                            if (need <= 0) break;
+                            var take = Math.Min(need, b.Remaining);
+                            b.Remaining -= take;
+                            need -= take;
+                        }
+                        if (need > 0) pool -= need;   // kovalar yetmedi → süresiz havuzdan
+                        break;
+                    case TimeLedgerType.Correction:
+                    case TimeLedgerType.Refund:
+                        pool += r.MinutesDelta;       // süresiz havuz (manuel ayar → yanmaz)
+                        break;
+                }
+            }
+
+            var live = buckets.Where(b => !b.Vt.HasValue || b.Vt.Value >= now).ToList();
+            return new BucketState(
+                AvailableNow: buckets.Where(b => BucketValidAt(b, now)).Sum(b => b.Remaining) + pool,
+                HasValidNow: buckets.Any(b => BucketValidAt(b, now)),
+                HasUpcoming: buckets.Any(b => b.Vf.HasValue && b.Vf.Value > now),
+                HasAny: hasAny,
+                NextExpiry: buckets.Where(b => b.Remaining > 0 && BucketValidAt(b, now) && b.Vt.HasValue)
+                    .Select(b => (DateTime?)b.Vt!.Value).OrderBy(d => d).FirstOrDefault(),
+                AggValidFrom: live.Where(b => b.Vf.HasValue).Select(b => (DateTime?)b.Vf!.Value).OrderBy(d => d).FirstOrDefault(),
+                AggValidTo: live.Where(b => b.Vt.HasValue).Select(b => (DateTime?)b.Vt!.Value).OrderByDescending(d => d).FirstOrDefault(),
+                Burned: buckets.Where(b => b.Vt.HasValue && b.Vt.Value < now).Sum(b => b.Remaining));
+        }
 
         // ---- RC3 altyapısı ----
 
@@ -75,21 +137,24 @@ namespace Iroh.Services
         // Materyalize bakiyeleri (TimeBalanceMinutes / CashBalance) defterlerden YENİDEN hesaplar — ledger otorite.
         // Elle += yerine çağrılır; çağrıdan önce ilgili defter satırları SaveChanges'lenmiş olmalı.
         // Süre-borcu (DebtCharge/DebtSettle) defteri balance'a karışmaz; ayrı toplanır.
-        private static readonly TimeLedgerType[] BalanceTypes =
-            { TimeLedgerType.Credit, TimeLedgerType.Consumption, TimeLedgerType.Correction, TimeLedgerType.Refund };
         private static readonly TimeLedgerType[] DebtTypes =
             { TimeLedgerType.DebtCharge, TimeLedgerType.DebtSettle };
 
         private async Task RecomputeBalances(Wallet wallet)
         {
-            // Kullanılabilir bakiye: yalnızca kredi/tüketim/düzeltme/iade.
-            wallet.TimeBalanceMinutes = await _context.TimeLedger
-                .Where(e => e.WalletId == wallet.Id && BalanceTypes.Contains(e.Type))
-                .SumAsync(e => (int?)e.MinutesDelta) ?? 0;
+            var now = DateTime.UtcNow;
+            var timeRows = await _context.TimeLedger
+                .Where(e => e.WalletId == wallet.Id).ToListAsync();
+
+            // Aşama B: bakiye = ŞU AN geçerli kovaların kalanı + havuz; pencere kovalardan toplulaştırılır.
+            var bs = ComputeBuckets(timeRows, now);
+            wallet.TimeBalanceMinutes = bs.AvailableNow;
+            wallet.ValidFrom = bs.AggValidFrom;
+            wallet.ValidTo = bs.AggValidTo;
+
             // Süre-borcu: DebtCharge(+) − DebtSettle(−) → kalan borçlu dakika (≥0).
-            wallet.TimeDebtMinutes = await _context.TimeLedger
-                .Where(e => e.WalletId == wallet.Id && DebtTypes.Contains(e.Type))
-                .SumAsync(e => (int?)e.MinutesDelta) ?? 0;
+            wallet.TimeDebtMinutes = timeRows.Where(e => DebtTypes.Contains(e.Type)).Sum(e => e.MinutesDelta);
+
             wallet.CashBalance = await _context.CashLedger
                 .Where(e => e.WalletId == wallet.Id).SumAsync(e => (decimal?)e.AmountDelta) ?? 0m;
             wallet.UpdatedAt = DateTime.UtcNow;
@@ -145,20 +210,20 @@ namespace Iroh.Services
                 .Where(e => e.WalletId == wallet.Id).OrderByDescending(e => e.Id).ToListAsync();
 
             var now = DateTime.UtcNow;
-            var validNow = IsValidNow(wallet, now);
-            var hasUpcoming = wallet.ValidFrom.HasValue && wallet.ValidFrom.Value > now;
-            var hasAny = timeRows.Any(e => e.Type == TimeLedgerType.Credit);
-            var status = Derive(wallet.TimeBalanceMinutes, validNow, hasUpcoming, hasAny);
+            var bs = ComputeBuckets(timeRows, now);
+            var status = Derive(bs.HasValidNow, bs.AvailableNow > 0, bs.HasUpcoming, bs.HasAny);
 
             return new WalletDto
             {
                 Id = wallet.Id,
                 CustomerId = wallet.CustomerId,
-                TimeBalanceMinutes = wallet.TimeBalanceMinutes,
+                TimeBalanceMinutes = bs.AvailableNow,
                 TimeDebtMinutes = wallet.TimeDebtMinutes,
                 CashBalance = wallet.CashBalance,
-                ValidFrom = wallet.ValidFrom,
-                ValidTo = wallet.ValidTo,
+                ValidFrom = bs.AggValidFrom,
+                ValidTo = bs.AggValidTo,
+                NextExpiry = bs.NextExpiry,
+                BurnedMinutes = bs.Burned,
                 Status = status.ToString(),
                 TimeLedger = timeRows.Select(TimeLedgerEntryDto.From).ToList(),
                 CashLedger = cashRows.Select(CashLedgerEntryDto.From).ToList()
@@ -204,13 +269,13 @@ namespace Iroh.Services
                         MinutesDelta = toBalance,
                         PackageId = packageId,
                         UserId = userId,
+                        ValidFrom = validFrom,   // Aşama B: kova kendi penceresini taşır
+                        ValidTo = validTo,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
 
-                // Geçerlilik penceresi verildiyse güncelle (tek pencere modeli; bakiyeden bağımsız alan).
-                if (validFrom.HasValue) wallet.ValidFrom = validFrom;
-                if (validTo.HasValue) wallet.ValidTo = validTo;
+                // Aşama B: geçerlilik artık Credit kovasında taşınır (yukarıda); wallet penceresi RecomputeBalances'ta türetilir.
 
                 // Peşin satış: net borç etkisi 0 (Charge − money + Payment + money), para izi kalır.
                 if (money > 0m)
@@ -234,7 +299,7 @@ namespace Iroh.Services
         }
 
         public async Task<CloseBookingResultDto> CloseBooking(int bookingId, SettlementMode settlement, int? userId,
-            DateTime? subscriptionEndTime = null, DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
+            DateTime? endTime = null, string? note = null, int? tableId = null, int? childId = null,
             decimal? chargeAmount = null)
         {
             return await InTransaction(async () =>
@@ -248,13 +313,13 @@ namespace Iroh.Services
                 if (tableId.HasValue) booking.TableId = tableId;
                 if (childId.HasValue) booking.ChildId = childId;
                 if (note != null) booking.Note = note;
-                // Finalize zaman penceresi: client TAM süreyi gönderir; kapsama BÖL'ünü servis yapar.
-                if (!booking.SubscriptionStartTime.HasValue)
-                    booking.SubscriptionStartTime = booking.StartTime ?? now;
-                booking.SubscriptionEndTime = subscriptionEndTime ?? booking.SubscriptionEndTime ?? now;
+                // Finalize zaman penceresi: client TAM (faturalanan) süreyi endTime ile gönderir; kapsama BÖL'ünü servis yapar.
+                // dur = faturalanan pencere (EndTime − StartTime). subscription* alanları kaldırıldı; kapsama ayrımı LEDGER'da.
+                if (!booking.StartTime.HasValue)
+                    booking.StartTime = now;
                 booking.EndTime = endTime ?? booking.EndTime ?? now;
 
-                var dur = (int)Math.Round((booking.SubscriptionEndTime!.Value - booking.SubscriptionStartTime!.Value).TotalMinutes);
+                var dur = (int)Math.Round((booking.EndTime!.Value - booking.StartTime!.Value).TotalMinutes);
                 if (dur < 0) dur = 0;
 
                 // Parent (cüzdan sahibi) çocuk üzerinden bulunur.
@@ -297,8 +362,11 @@ namespace Iroh.Services
                     return result;
                 }
 
-                var validNow = IsValidNow(wallet, now);
-                var cover = validNow ? Math.Min(dur, Math.Max(0, wallet.TimeBalanceMinutes)) : 0;
+                // Aşama B: kapsama, ŞU AN geçerli kovaların kalanından (önce-süresi-dolacak). Tek Consumption satırı
+                // yazılır; hangi kovadan düştüğü RecomputeBalances/ComputeBuckets ile deterministik çözülür.
+                var bucketRows = await _context.TimeLedger.Where(e => e.WalletId == wallet.Id).ToListAsync();
+                var available = ComputeBuckets(bucketRows, now).AvailableNow;
+                var cover = Math.Min(dur, Math.Max(0, available));
 
                 if (cover > 0)
                 {
@@ -319,6 +387,13 @@ namespace Iroh.Services
 
                     if (settlement == SettlementMode.Debt)
                     {
+                        // A1: süre-borcu yalnızca abonelik geçmişi olana (en az bir Credit) açıktır.
+                        // Hiç abonelik almamış müşteri borçlanamaz → peşin tahsil zorunlu.
+                        var hasAny = await _context.TimeLedger
+                            .AnyAsync(e => e.WalletId == wallet.Id && e.Type == TimeLedgerType.Credit);
+                        if (!hasAny)
+                            throw new BusinessRuleException("Abonelik geçmişi olmayan müşteri süre borçlanamaz; peşin tahsil edilmelidir.");
+
                         // Borca yaz: aşım SÜRE olarak borçlanılır (para değil). Para, ödeme anında operatör tarafından girilir.
                         _context.TimeLedger.Add(new TimeLedgerEntry
                         {
@@ -329,8 +404,16 @@ namespace Iroh.Services
                     }
                     else
                     {
-                        // Peşin tahsil: ücret operatör girdisi (chargeAmount); verilmezse Company oranı (öneri/varsayılan).
-                        var price = chargeAmount ?? await _pricing.PriceForMinutes(uncovered);
+                        // A2: öneri fiyatı YALNIZCA tam oturum (cover==0) için — aşan kısım = bağımsız bir oturum,
+                        // "ilk saat + sonraki yarım saat" formülü doğru çalışır. Kısmi kapsamada aşım, oturumun
+                        // ortasından bir parça olduğundan formülle önerilemez → tutar operatörden ZORUNLU gelir.
+                        decimal price;
+                        if (chargeAmount.HasValue)
+                            price = chargeAmount.Value;
+                        else if (cover == 0)
+                            price = await _pricing.PriceForMinutes(uncovered);
+                        else
+                            throw new BusinessRuleException("Kısmi kapsamada tahsilat tutarı elle girilmelidir.");
                         if (price < 0m) throw new BusinessRuleException("Tahsilat tutarı negatif olamaz.");
                         result.Charged = price;
 

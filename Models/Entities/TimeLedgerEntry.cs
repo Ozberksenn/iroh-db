@@ -19,6 +19,14 @@ namespace Iroh.Models.Entities
         [Column("package_id")]
         public int? PackageId { get; set; }      // Credit ise hangi katalogdan
 
+        // Kova penceresi — yalnız Credit satırlarında dolu (docs/subscription-buckets.md).
+        // Tüketim önce-süresi-dolacak kovadan düşülür; süresi dolan kovanın kalanı yanar.
+        [Column("valid_from")]
+        public DateTime? ValidFrom { get; set; }
+
+        [Column("valid_to")]
+        public DateTime? ValidTo { get; set; }
+
         [Column("booking_id")]
         public int? BookingId { get; set; }      // Consumption ise hangi oturum
 

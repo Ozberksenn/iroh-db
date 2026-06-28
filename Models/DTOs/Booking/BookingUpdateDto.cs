@@ -15,7 +15,5 @@ namespace Iroh.Models.DTOs.Booking
         public int? ChildId { get; set; }
         public string? Note { get; set; }
         public int? PurchaseId { get; set; }
-        public DateTime? SubscriptionStartTime { get; set; }
-        public DateTime? SubscriptionEndTime { get; set; }
     }
 }

@@ -49,9 +49,9 @@ namespace Iroh.Tests
             using (var c = NewContext(db))
             {
                 c.Customers.Add(new Customer { Id = 1, Name = "Parent" });
-                // Bakiyesi var ama geçerlilik penceresi geçmişte.
-                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1, TimeBalanceMinutes = 300, ValidFrom = now.AddDays(-10), ValidTo = now.AddDays(-5) });
-                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Credit, MinutesDelta = 300 });
+                // Kova penceresi geçmişte → geçerli değil; kalan 300 dk yanar (Aşama B: availableNow=0).
+                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1, TimeBalanceMinutes = 0, ValidFrom = now.AddDays(-10), ValidTo = now.AddDays(-5) });
+                c.TimeLedger.Add(new TimeLedgerEntry { WalletId = 100, Type = TimeLedgerType.Credit, MinutesDelta = 300, ValidFrom = now.AddDays(-10), ValidTo = now.AddDays(-5) });
                 await c.SaveChangesAsync();
             }
 
@@ -61,7 +61,7 @@ namespace Iroh.Tests
                 Assert.True(sub.HasAny);
                 Assert.False(sub.HasUpcoming);
                 Assert.False(sub.BestIsDateValid);               // süresi dolmuş
-                Assert.Equal(300d, sub.BestRemainingMinutes, 5);
+                Assert.Equal(0d, sub.BestRemainingMinutes, 5);   // süresi dolmuş kova → kullanılamaz (yandı)
             }
         }
 
@@ -102,6 +102,29 @@ namespace Iroh.Tests
                 var row = Assert.Single(rows);
                 Assert.Equal("ActiveSubscriber", row.Customer!.Status);
                 Assert.Equal(2, row.Customer.ChildId);
+            }
+        }
+
+        [Fact]
+        public async Task GetActiveBookings_EmptyWalletCustomer_RemainingNull()
+        {
+            // Boş cüzdanlı (geçmiş nakit kapanışından kalan) Customer → RemainingMinutes NULL olmalı ki
+            // client normal fiyatı hesaplasın. (Regresyon: HasWallet kapısı 0 döndürüp aktif-oturum fiyatını sıfırlıyordu.)
+            var db = Guid.NewGuid().ToString();
+            using (var c = NewContext(db))
+            {
+                c.Customers.Add(new Customer { Id = 1, Name = "Cashy" });
+                c.Children.Add(new Child { Id = 2, ParentId = 1, Name = "Kid", IsDeleted = false });
+                c.Bookings.Add(new Booking { Id = 3, ChildId = 2, Status = BookingStatus.Active });
+                c.Wallets.Add(new Wallet { Id = 100, CustomerId = 1 });   // boş cüzdan: Credit satırı yok
+                await c.SaveChangesAsync();
+            }
+            using (var c = NewContext(db))
+            {
+                var rows = await new SubscriptionService(c).GetActiveBookings();
+                var row = Assert.Single(rows);
+                Assert.Equal("Customer", row.Customer!.Status);
+                Assert.Null(row.Customer.RemainingMinutes);   // abone değil → null → client fiyat hesaplar
             }
         }
 

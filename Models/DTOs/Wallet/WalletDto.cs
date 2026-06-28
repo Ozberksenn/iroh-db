@@ -15,6 +15,8 @@ namespace Iroh.Models.DTOs.Wallet
 
         public DateTime? ValidFrom { get; set; }
         public DateTime? ValidTo { get; set; }
+        public DateTime? NextExpiry { get; set; }        // kalan bakiyenin en erken yanma tarihi (Aşama B)
+        public int BurnedMinutes { get; set; }           // süresi dolmuş kovalarda yanan dakika (bilgi)
 
         public string Status { get; set; } = nameof(SubscriptionStatus.Customer);
 
@@ -45,6 +47,9 @@ namespace Iroh.Models.DTOs.Wallet
         public int? PackageId { get; set; }
         public int? BookingId { get; set; }
         public string? Reason { get; set; }
+        // Kova penceresi (yalnız Credit satırlarında dolu) — UI'da kredinin geçerliliğini gösterir.
+        public DateTime? ValidFrom { get; set; }
+        public DateTime? ValidTo { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public static TimeLedgerEntryDto From(TimeLedgerEntry e) => new()
@@ -55,6 +60,8 @@ namespace Iroh.Models.DTOs.Wallet
             PackageId = e.PackageId,
             BookingId = e.BookingId,
             Reason = e.Reason,
+            ValidFrom = e.ValidFrom,
+            ValidTo = e.ValidTo,
             CreatedAt = e.CreatedAt
         };
     }

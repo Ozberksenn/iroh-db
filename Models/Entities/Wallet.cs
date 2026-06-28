@@ -17,12 +17,14 @@ namespace Iroh.Models.Entities
         [Column("time_balance_minutes")]
         public int TimeBalanceMinutes { get; set; }
 
-        // Σ cash_ledger.amount_delta — NEGATİF ise müşteri borçludur (borç = max(0, -CashBalance)).
+        // Σ cash_ledger.amount_delta — tahsilat/ciro defterinin toplamı (denk ödeme izi). Abonelik/oturum
+        // akışlarında DAİMA net-0 kalır; negatife yalnızca elle AdjustCash düzeltmesiyle düşebilir. Borç DEĞİL —
+        // tek borç türü süre-borcudur (TimeDebtMinutes). (Negatif kasa yalnızca borçlu-müşteriler raporunda çıkar.)
         [Column("cash_balance")]
         public decimal CashBalance { get; set; }
 
         // Σ time_ledger {DebtCharge,DebtSettle} — kapsanmayan (aşım) sürenin SÜRE cinsinden borcu (≥0).
-        // Para-borcundan (cash_balance) ayrıdır; ödeme anında operatör para karşılığını girer.
+        // Sistemdeki TEK borç kavramı budur; ödeme anında operatör para karşılığını elle girer.
         [Column("time_debt_minutes")]
         public int TimeDebtMinutes { get; set; }
 

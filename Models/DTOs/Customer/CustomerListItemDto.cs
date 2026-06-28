@@ -9,5 +9,6 @@ namespace Iroh.Models.DTOs.Customer
         public string? Phone { get; set; }
         public string? Mail { get; set; }
         public string Status { get; set; } = "Customer";
+        public int TimeDebtMinutes { get; set; }   // süre-borcu (dk); 0 = borçsuz. Statüden bağımsız rozet için.
     }
 }

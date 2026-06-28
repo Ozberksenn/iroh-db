@@ -99,8 +99,6 @@ namespace Iroh.Services
                 Price = b.Price,
                 StartTime = b.StartTime,
                 EndTime = b.EndTime,
-                SubscriptionStartTime = b.SubscriptionStartTime,
-                SubscriptionEndTime = b.SubscriptionEndTime,
                 Status = b.Status.ToString(),
                 Note = b.Note
             }).ToListAsync();
@@ -126,6 +124,22 @@ namespace Iroh.Services
                         .Where(a => a.BookingId == it.Id && a.Type == TimeLedgerType.DebtCharge)
                         .Sum(a => a.Minutes);
                 }
+            }
+
+            // Müşteri rozeti per-session ledger'a DEĞİL, parent'ın abonelik geçmişine (hasAny) bağlıdır:
+            // abonenin nakit-ödenmiş oturumu da "Abone" görünmeli. hasAny = cüzdanda en az bir Credit.
+            var parentIds = items.Where(i => i.Customer?.ParentId != null)
+                .Select(i => i.Customer!.ParentId!.Value).Distinct().ToList();
+            if (parentIds.Count > 0)
+            {
+                var subscriberParents = (await _context.Wallets
+                    .Where(w => parentIds.Contains(w.CustomerId)
+                        && _context.TimeLedger.Any(e => e.WalletId == w.Id && e.Type == TimeLedgerType.Credit))
+                    .Select(w => w.CustomerId)
+                    .ToListAsync()).ToHashSet();
+                foreach (var it in items)
+                    if (it.Customer?.ParentId != null)
+                        it.Customer.IsSubscriber = subscriberParents.Contains(it.Customer.ParentId.Value);
             }
 
             return new PagedResult<BookingListItemDto>
@@ -213,8 +227,6 @@ namespace Iroh.Services
             existingBooking.Price = updatedBooking.Price ?? existingBooking.Price;
             existingBooking.ChildId = updatedBooking.ChildId ?? existingBooking.ChildId;
             existingBooking.Note = updatedBooking.Note ?? existingBooking.Note;
-            existingBooking.SubscriptionStartTime = updatedBooking.SubscriptionStartTime ?? existingBooking.SubscriptionStartTime;
-            existingBooking.SubscriptionEndTime = updatedBooking.SubscriptionEndTime ?? existingBooking.SubscriptionEndTime;
 
             try
             {

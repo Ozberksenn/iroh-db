@@ -9,8 +9,6 @@ namespace Iroh.Models.DTOs.Booking
         public decimal? Price { get; set; }                 // tahsil edilen ₺ (PayNow/misafir); Debt'te 0
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public DateTime? SubscriptionStartTime { get; set; }
-        public DateTime? SubscriptionEndTime { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Note { get; set; }
         // Ledger'dan türetilen kapanış kırılımı (gerçek kaynak; zaman farkından tahmin DEĞİL).
@@ -32,5 +30,6 @@ namespace Iroh.Models.DTOs.Booking
         public string? ParentName { get; set; }
         public string? ParentLastName { get; set; }
         public string? Phone { get; set; }
+        public bool IsSubscriber { get; set; }   // parent abonelik geçmişi var mı (hasAny) — liste rozeti için
     }
 }

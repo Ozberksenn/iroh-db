@@ -21,14 +21,14 @@ namespace Iroh.Models.Enums
         Refund        // para iadesi → −
     }
 
-    // Tek abone statüsü — eski 5 dallı mantığın tek karşılığı (active-bookings + search-unified ortak).
+    // Abone statüsü — YALNIZ pencere + abonelik geçmişine göre türetilir. Bakiye statüyü belirlemez;
+    // kalan dakika ayrı bir sayı, süre-borcu (TimeDebtMinutes) ayrı bir sinyaldir.
     public enum SubscriptionStatus
     {
-        Customer,             // hiç paket yok
-        Subscriber,           // paketi var ama hiçbiri geçerli değil (süresi dolmuş)
-        UpcomingSubscriber,   // geçerli paket yok ama ileri tarihli var
-        OverageSubscriber,    // geçerli + bakiye 0 → yeni kullanım ücrete/borca gider
-        ActiveSubscriber      // geçerli + bakiye var
+        Customer,             // hiç abonelik almamış (Credit yok)
+        Subscriber,           // abonelik geçmişi var ama şu an geçerli pencere yok (süresi dolmuş)
+        UpcomingSubscriber,   // ileri tarihli (henüz başlamamış) pencere var
+        ActiveSubscriber      // şu an geçerli abonelik penceresi var (bakiye 0 olsa da)
     }
 
     // Oturum kapanışında kapsanmayan süre için tahsilat kararı.
