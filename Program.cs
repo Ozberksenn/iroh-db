@@ -146,6 +146,13 @@ builder.Services.AddDbContextPool<AppDbContext>(options =>
 
 var app = builder.Build();
 
+// Uygulama ayağa kalkarken eksik veri tabanı göçlerini (migrations) otomatik olarak uygular
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+}
+
 // Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
 app.UseExceptionHandler();
 

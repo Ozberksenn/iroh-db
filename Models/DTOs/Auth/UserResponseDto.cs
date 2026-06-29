@@ -1,3 +1,5 @@
+using Iroh.Models.Enums;
+
 namespace Iroh.Models.DTOs.Auth
 {
     // Register yanıtı — User entity'si (şifre hash dahil) asla serialize edilmez.
@@ -9,5 +11,6 @@ namespace Iroh.Models.DTOs.Auth
         public string? Mail { get; set; }
         public string? Phone { get; set; }
         public bool IsActive { get; set; }
+        public UserRole Role { get; set; }
     }
 }
