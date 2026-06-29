@@ -67,7 +67,8 @@ namespace Iroh.Controllers
                 Mail = registerDto.Mail,
                 Password = registerDto.Password,
                 Phone = registerDto.Phone,
-                IsActive = true
+                IsActive = true,
+                Role = Iroh.Models.Enums.UserRole.User // Default to User role on public registration
             });
 
             var dto = new UserResponseDto
@@ -77,7 +78,8 @@ namespace Iroh.Controllers
                 LastName = createdUser.LastName,
                 Mail = createdUser.Mail,
                 Phone = createdUser.Phone,
-                IsActive = createdUser.IsActive
+                IsActive = createdUser.IsActive,
+                Role = createdUser.Role
             };
             return Ok(ApiResponse.Ok(dto, "Kullanıcı başarıyla oluşturuldu"));
         }

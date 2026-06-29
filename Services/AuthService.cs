@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Iroh.Models.DTOs.Auth;
 using Iroh.Models.Entities;
+using Iroh.Models.Enums;
 using Iroh.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -124,7 +125,9 @@ namespace Iroh.Services
                 new Claim("mail", user.Mail),
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("name", user.Name)
+                new Claim("name", user.Name),
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim("role", user.Role.ToString())
             };
 
             var token = new JwtSecurityToken(

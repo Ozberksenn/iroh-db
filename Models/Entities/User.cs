@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Iroh.Models.Enums;
 
 namespace Iroh.Models.Entities
 {
@@ -22,5 +23,11 @@ namespace Iroh.Models.Entities
 
         [Column("isactive")]
         public required bool IsActive { get; set; } = true;
+
+        [Column("role")]
+        public required UserRole Role { get; set; } = UserRole.User;
+
+        [Column("department")]
+        public string? Department { get; set; }
     }
 }

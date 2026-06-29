@@ -32,6 +32,11 @@ public class AppDbContext : DbContext
             .Property(b => b.Status)
             .HasConversion<string>();
 
+        // UserRole enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
+        modelBuilder.Entity<User>()
+            .Property(u => u.Role)
+            .HasConversion<string>();
+
         // BookingLogType enum'unu veritabanındaki string (character varying) alanıyla eşleştiriyoruz.
         modelBuilder.Entity<BookingLog>()
             .Property(bl => bl.Type)
