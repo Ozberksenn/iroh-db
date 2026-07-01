@@ -24,10 +24,9 @@ namespace Iroh.Models.Entities
         [Column("isactive")]
         public required bool IsActive { get; set; } = true;
 
+        // Yetki rolü. DB'de string ('User'/'Admin') saklanır (AppDbContext HasConversion<string>).
+        // Yeni kullanıcılar varsayılan olarak 'User'; admin ataması ayrıca yapılır.
         [Column("role")]
-        public required UserRole Role { get; set; } = UserRole.User;
-
-        [Column("department")]
-        public string? Department { get; set; }
+        public UserRole Role { get; set; } = UserRole.User;
     }
 }

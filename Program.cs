@@ -146,12 +146,11 @@ builder.Services.AddDbContextPool<AppDbContext>(options =>
 
 var app = builder.Build();
 
-// Uygulama ayağa kalkarken eksik veri tabanı göçlerini (migrations) otomatik olarak uygular
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.Migrate();
-}
+// NOT: Şema-first çalışıyoruz — canlı DB kanonik, şema EF migration'larıyla sürülmüyor.
+// Açılışta Database.Migrate() KASITLI olarak çağrılmaz: otomatik-üretilmiş migration'lar
+// (purchase tablolarını düşürüp cüzdan tablolarını yeniden yaratan bayat snapshot'a dayalı)
+// canlı DB'de veri kaybına / açılış çökmesine yol açardı. Kolon değişiklikleri elle SQL ile
+// uygulanır (bkz. scripts/). EF migration'a geçiş ayrı bir iş (PLAN-EF-MIGRATION-ADOPTION.md).
 
 // Yakalanmayan tüm hatalar GlobalExceptionHandler üzerinden ProblemDetails'e dönüşür.
 app.UseExceptionHandler();

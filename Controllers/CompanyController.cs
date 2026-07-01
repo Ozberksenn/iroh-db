@@ -25,6 +25,9 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(companies.Select(CompanyDto.From).ToList(), "Başarılı"));
         }
 
+        // Şirket/fiyat ayarlarını yalnızca Admin güncelleyebilir (sunucu tarafı zorlama).
+        // GET açık kalır: fiyatlandırma aktif-oturum vb. operasyonel ekranlarda herkese lazım.
+        [Authorize(Roles = "Admin")]
         [HttpPut]
         public async Task<IActionResult> Update(CompanyUpdateDto dto)
         {

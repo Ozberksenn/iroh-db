@@ -26,6 +26,9 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(result.Select(PackageDto.From).ToList(), "Başarılı"));
         }
 
+        // Paket tanımlarını yalnızca Admin yönetebilir. GET açık: kredi/abonelik satarken
+        // operatörün paket listesine erişmesi gerekir.
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> Create(PackageCreateDto dto)
         {
@@ -40,6 +43,7 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(PackageDto.From(result), "Paket başarıyla oluşturuldu"));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut]
         public async Task<IActionResult> Update(PackageUpdateDto dto)
         {
@@ -56,6 +60,7 @@ namespace Iroh.Controllers
             return Ok(ApiResponse.Ok(PackageDto.From(package), "Paket başarıyla güncellendi"));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

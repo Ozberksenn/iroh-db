@@ -35,7 +35,7 @@ namespace iroh_be.Migrations
                         .HasColumnName("child_id");
 
                     b.Property<DateTime?>("EndTime")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("endtime");
 
                     b.Property<string>("Note")
@@ -43,18 +43,25 @@ namespace iroh_be.Migrations
                         .HasColumnName("note");
 
                     b.Property<decimal?>("Price")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("price");
 
                     b.Property<DateTime?>("StartTime")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("starttime");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");
+
+                    b.Property<DateTime?>("SubscriptionEndTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("subscriptionendtime");
+
+                    b.Property<DateTime?>("SubscriptionStartTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("subscriptionstarttime");
 
                     b.Property<int?>("TableId")
                         .HasColumnType("integer")
@@ -83,7 +90,7 @@ namespace iroh_be.Migrations
                         .HasColumnName("bookingid");
 
                     b.Property<DateTime>("Time")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("time");
 
                     b.Property<string>("Type")
@@ -102,50 +109,6 @@ namespace iroh_be.Migrations
                     b.ToTable("bookinglogs", "public");
                 });
 
-            modelBuilder.Entity("Iroh.Models.Entities.CashLedgerEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("AmountDelta")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
-                        .HasColumnName("amount_delta");
-
-                    b.Property<int?>("BookingId")
-                        .HasColumnType("integer")
-                        .HasColumnName("booking_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("type");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.Property<int>("WalletId")
-                        .HasColumnType("integer")
-                        .HasColumnName("wallet_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("cash_ledger", "public");
-                });
-
             modelBuilder.Entity("Iroh.Models.Entities.Child", b =>
                 {
                     b.Property<int>("Id")
@@ -155,12 +118,12 @@ namespace iroh_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("BirthDate")
-                        .HasColumnType("timestamp with time zone")
+                    b.Property<DateTime>("BirthDate")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("birth_date");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
                     b.Property<bool>("IsDeleted")
@@ -177,7 +140,7 @@ namespace iroh_be.Migrations
                         .HasColumnName("parent_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
@@ -196,14 +159,12 @@ namespace iroh_be.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("AdditionalHalfHourPrice")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                    b.Property<int>("AdditionalHalfHourPrice")
+                        .HasColumnType("integer")
                         .HasColumnName("additionalhalfhourprice");
 
-                    b.Property<decimal>("FirstHourPrice")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                    b.Property<int>("FirstHourPrice")
+                        .HasColumnType("integer")
                         .HasColumnName("firsthourprice");
 
                     b.Property<string>("Name")
@@ -226,7 +187,7 @@ namespace iroh_be.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("createdat");
 
                     b.Property<bool>("IsDeleted")
@@ -251,7 +212,7 @@ namespace iroh_be.Migrations
                         .HasColumnName("phone");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("updatedat");
 
                     b.HasKey("Id");
@@ -269,12 +230,11 @@ namespace iroh_be.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
                     b.Property<decimal>("Hours")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("hours");
 
                     b.Property<bool>("IsDeleted")
@@ -287,12 +247,11 @@ namespace iroh_be.Migrations
                         .HasColumnName("name");
 
                     b.Property<decimal>("Price")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("price");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
 
                     b.Property<int?>("ValidityDays")
@@ -302,6 +261,104 @@ namespace iroh_be.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("packages", "public");
+                });
+
+            modelBuilder.Entity("Iroh.Models.Entities.Purchase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("createdat");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customerid");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("enddate");
+
+                    b.Property<decimal>("Hours")
+                        .HasColumnType("numeric")
+                        .HasColumnName("hours");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric")
+                        .HasColumnName("price");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("startdate");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updatedat");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("purchases", "public");
+                });
+
+            modelBuilder.Entity("Iroh.Models.Entities.PurchaseBooking", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("integer")
+                        .HasColumnName("bookingid");
+
+                    b.Property<int>("PurchaseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchaseid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("PurchaseId");
+
+                    b.ToTable("purchasebookings", "public");
+                });
+
+            modelBuilder.Entity("Iroh.Models.Entities.PurchasePayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Hours")
+                        .HasColumnType("numeric")
+                        .HasColumnName("hours");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric")
+                        .HasColumnName("price");
+
+                    b.Property<int>("PurchaseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("purchaseid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PurchaseId");
+
+                    b.ToTable("purchasepayments", "public");
                 });
 
             modelBuilder.Entity("Iroh.Models.Entities.Table", b =>
@@ -327,61 +384,6 @@ namespace iroh_be.Migrations
                     b.ToTable("tables", "public");
                 });
 
-            modelBuilder.Entity("Iroh.Models.Entities.TimeLedgerEntry", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("BookingId")
-                        .HasColumnType("integer")
-                        .HasColumnName("booking_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("MinutesDelta")
-                        .HasColumnType("integer")
-                        .HasColumnName("minutes_delta");
-
-                    b.Property<int?>("PackageId")
-                        .HasColumnType("integer")
-                        .HasColumnName("package_id");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("text")
-                        .HasColumnName("reason");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("type");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.Property<DateTime?>("ValidFrom")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_from");
-
-                    b.Property<DateTime?>("ValidTo")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_to");
-
-                    b.Property<int>("WalletId")
-                        .HasColumnType("integer")
-                        .HasColumnName("wallet_id");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("time_ledger", "public");
-                });
-
             modelBuilder.Entity("Iroh.Models.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -390,10 +392,6 @@ namespace iroh_be.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Department")
-                        .HasColumnType("text")
-                        .HasColumnName("department");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -422,59 +420,9 @@ namespace iroh_be.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("role");
-
                     b.HasKey("Id");
 
                     b.ToTable("users", "public");
-                });
-
-            modelBuilder.Entity("Iroh.Models.Entities.Wallet", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("CashBalance")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("numeric(12,2)")
-                        .HasColumnName("cash_balance");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("integer")
-                        .HasColumnName("customer_id");
-
-                    b.Property<int>("TimeBalanceMinutes")
-                        .HasColumnType("integer")
-                        .HasColumnName("time_balance_minutes");
-
-                    b.Property<int>("TimeDebtMinutes")
-                        .HasColumnType("integer")
-                        .HasColumnName("time_debt_minutes");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<DateTime?>("ValidFrom")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_from");
-
-                    b.Property<DateTime?>("ValidTo")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("valid_to");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerId");
-
-                    b.ToTable("wallets", "public");
                 });
 
             modelBuilder.Entity("Iroh.Models.Entities.Booking", b =>
@@ -514,7 +462,7 @@ namespace iroh_be.Migrations
                     b.Navigation("Parent");
                 });
 
-            modelBuilder.Entity("Iroh.Models.Entities.Wallet", b =>
+            modelBuilder.Entity("Iroh.Models.Entities.Purchase", b =>
                 {
                     b.HasOne("Iroh.Models.Entities.Customer", "Customer")
                         .WithMany()
@@ -523,6 +471,36 @@ namespace iroh_be.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Iroh.Models.Entities.PurchaseBooking", b =>
+                {
+                    b.HasOne("Iroh.Models.Entities.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Iroh.Models.Entities.Purchase", "Purchase")
+                        .WithMany()
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Purchase");
+                });
+
+            modelBuilder.Entity("Iroh.Models.Entities.PurchasePayment", b =>
+                {
+                    b.HasOne("Iroh.Models.Entities.Purchase", "Purchase")
+                        .WithMany()
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Purchase");
                 });
 
             modelBuilder.Entity("Iroh.Models.Entities.Booking", b =>
